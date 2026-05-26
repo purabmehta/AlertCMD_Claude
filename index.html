@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AlertCmd — TradingView Alert Tracker & Crypto Screener</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --bg: hsl(220 20% 97%);
+  --bg2: hsl(220 15% 93%);
+  --sidebar-bg: hsl(210 35% 96%);
+  --card: hsl(0 0% 100%);
+  --border: hsl(220 15% 88%);
+  --text: hsl(220 15% 20%);
+  --text2: hsl(220 10% 45%);
+  --primary: hsl(190 80% 38%);
+  --primary-hover: hsl(190 80% 32%);
+  --bullish-text: hsl(165 80% 30%);
+  --bullish-bg: hsl(165 45% 92%);
+  --bearish-text: hsl(28 88% 42%);
+  --bearish-bg: hsl(28 60% 92%);
+  --sellcalls-text: hsl(355 75% 48%);
+  --sellcalls-bg: hsl(355 45% 93%);
+  --green: hsl(142 76% 36%);
+  --red: hsl(0 84% 55%);
+  --orange: hsl(25 95% 55%);
+}
+html.dark {
+  --bg: hsl(220 20% 10%);
+  --bg2: hsl(220 20% 14%);
+  --sidebar-bg: hsl(220 25% 12%);
+  --card: hsl(220 20% 16%);
+  --border: hsl(220 20% 22%);
+  --text: hsl(220 15% 92%);
+  --text2: hsl(220 10% 60%);
+  --primary: hsl(190 80% 50%);
+  --primary-hover: hsl(190 80% 42%);
+  --bullish-text: hsl(165 70% 60%);
+  --bullish-bg: hsl(165 50% 15%);
+  --bearish-text: hsl(28 88% 65%);
+  --bearish-bg: hsl(28 55% 16%);
+  --sellcalls-text: hsl(355 75% 68%);
+  --sellcalls-bg: hsl(355 45% 16%);
+  --green: hsl(142 76% 45%);
+  --red: hsl(0 84% 65%);
+  --orange: hsl(25 95% 65%);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+.app { display: flex; min-height: 100vh; }
+.sidebar { width: 220px; min-width: 220px; background: var(--sidebar-bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 16px 0; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; z-index: 100; }
+.sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 8px 16px 20px; font-size: 1.1rem; font-weight: 700; color: var(--primary); }
+.sidebar-logo svg { width: 28px; height: 28px; }
+.sidebar-section { padding: 4px 8px 4px 16px; font-size: 0.65rem; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 8px; }
+.sidebar-item { display: flex; align-items: center; gap: 10px; padding: 8px 16px; font-size: 0.85rem; color: var(--text2); cursor: pointer; border-radius: 0; transition: all 0.15s; text-decoration: none; }
+.sidebar-item:hover { background: var(--bg2); color: var(--text); }
+.sidebar-item.active { background: hsl(190 80% 50% / 0.12); color: var(--primary); font-weight: 500; border-right: 2px solid var(--primary); }
+.sidebar-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+.main { margin-left: 220px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+.topnav { height: 52px; background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; padding: 0 20px; position: sticky; top: 0; z-index: 50; }
+.topnav-title { font-size: 0.95rem; font-weight: 600; margin-right: 8px; }
+.topnav-tabs { display: flex; gap: 2px; background: var(--bg2); border-radius: 6px; padding: 2px; }
+.topnav-tab { padding: 4px 12px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; color: var(--text2); border: none; background: transparent; }
+.topnav-tab.active { background: var(--card); color: var(--text); font-weight: 500; }
+.search-bar { flex: 1; max-width: 300px; display: flex; align-items: center; gap: 6px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; margin-left: 8px; }
+.search-bar input { background: transparent; border: none; outline: none; color: var(--text); font-size: 0.82rem; width: 100%; }
+.search-bar input::placeholder { color: var(--text2); }
+.topnav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.btn { padding: 5px 12px; border-radius: 5px; font-size: 0.78rem; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: var(--bg2); color: var(--text); transition: all 0.15s; }
+.btn:hover { background: var(--border); }
+.btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-hover); }
+.live-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.page { flex: 1; padding: 20px; overflow: auto; }
+.page-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.page-title { font-size: 1.1rem; font-weight: 700; }
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 600; }
+.badge-bullish { background: var(--bullish-bg); color: var(--bullish-text); }
+.badge-bearish { background: var(--bearish-bg); color: var(--bearish-text); }
+.badge-sellcalls { background: var(--sellcalls-bg); color: var(--sellcalls-text); }
+.badge-green { background: hsl(142 76% 36% / 0.15); color: var(--green); }
+.badge-red { background: hsl(0 84% 55% / 0.15); color: var(--red); }
+.badge-gray { background: var(--bg2); color: var(--text2); }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+th { text-align: left; padding: 8px 12px; background: hsl(165 80% 25% / 0.85); color: white; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; position: sticky; top: 0; }
+td { padding: 7px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:hover td { background: var(--bg2); }
+.table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.filter-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.filter-btn { padding: 5px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: var(--bg2); color: var(--text2); transition: all 0.15s; }
+.filter-btn:hover, .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+.icon-btn { background: transparent; border: none; cursor: pointer; color: var(--text2); padding: 3px; border-radius: 4px; display: inline-flex; align-items: center; }
+.icon-btn:hover { color: var(--text); background: var(--bg2); }
+.icon-btn.active { color: var(--orange); }
+.icon-btn.danger:hover { color: var(--red); }
+.kanban { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px; }
+.kanban-col { min-width: 260px; max-width: 300px; flex: 1; }
+.kanban-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 6px 6px 0 0; font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.kanban-header.bullish { background: var(--bullish-bg); color: var(--bullish-text); }
+.kanban-header.bearish { background: var(--bearish-bg); color: var(--bearish-text); }
+.kanban-header.sellcalls { background: var(--sellcalls-bg); color: var(--sellcalls-text); }
+.kanban-header.opentrades { background: hsl(210 80% 50% / 0.15); color: hsl(210 80% 55%); }
+.kanban-body { background: var(--bg2); border: 1px solid var(--border); border-top: none; border-radius: 0 0 6px 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; min-height: 200px; }
+.symbol-card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.symbol-card-name { font-weight: 700; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; }
+.symbol-card-time { font-size: 0.7rem; color: var(--text2); }
+.symbol-card-actions { display: flex; gap: 2px; }
+.dup-badge { background: var(--primary); color: white; border-radius: 10px; font-size: 0.65rem; font-weight: 700; padding: 1px 5px; }
+.info-banner { background: hsl(210 80% 50% / 0.1); border: 1px solid hsl(210 80% 50% / 0.3); border-radius: 6px; padding: 8px 14px; font-size: 0.8rem; color: hsl(210 80% 65%); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.screener-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 14px; }
+.screener-tab { padding: 5px 12px; border-radius: 5px; font-size: 0.78rem; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: var(--bg2); color: var(--text2); transition: all 0.15s; }
+.screener-tab:hover { border-color: var(--primary); color: var(--primary); }
+.screener-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+.regime-bull { color: var(--green); font-weight: 600; }
+.regime-bear { color: var(--red); font-weight: 600; }
+.macd-bull { color: var(--green); }
+.macd-bear { color: var(--red); }
+.macd-cross { font-weight: 700; }
+.watchlist-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.watchlist-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; font-size: 0.82rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+.watchlist-chip button { background: transparent; border: none; cursor: pointer; color: var(--text2); font-size: 0.9rem; line-height: 1; padding: 0 2px; }
+.watchlist-chip button:hover { color: var(--red); }
+.add-symbol-form { display: flex; gap: 8px; margin-bottom: 16px; }
+.add-symbol-form input { padding: 6px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.85rem; outline: none; }
+.add-symbol-form input:focus { border-color: var(--primary); }
+.rule-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; }
+.rule-form { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+.rule-form h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 12px; }
+.form-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.form-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 120px; }
+.form-field label { font-size: 0.72rem; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.04em; }
+.form-field input, .form-field select { padding: 6px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-size: 0.83rem; outline: none; }
+.form-field input:focus, .form-field select:focus { border-color: var(--primary); }
+.settings-section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+.settings-section h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.settings-row:last-child { border-bottom: none; }
+.settings-label { font-size: 0.85rem; font-weight: 500; }
+.settings-desc { font-size: 0.75rem; color: var(--text2); }
+.toggle { position: relative; width: 36px; height: 20px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: var(--border); border-radius: 20px; transition: 0.2s; }
+.toggle-slider:before { content: ''; position: absolute; height: 14px; width: 14px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.2s; }
+.toggle input:checked + .toggle-slider { background: var(--primary); }
+.toggle input:checked + .toggle-slider:before { transform: translateX(16px); }
+.today-badge { background: var(--primary); color: white; font-size: 0.6rem; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+.open-trade-btn { padding: 2px 8px; font-size: 0.7rem; font-weight: 600; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text2); transition: all 0.15s; }
+.open-trade-btn.active { background: hsl(210 80% 50% / 0.15); color: hsl(210 80% 65%); border-color: hsl(210 80% 50% / 0.4); }
+.mono { font-family: 'JetBrains Mono', monospace; }
+.text-green { color: var(--green); }
+.text-red { color: var(--red); }
+.count-text { font-size: 0.78rem; color: var(--text2); }
+select { background: var(--bg2); color: var(--text); border: 1px solid var(--border); border-radius: 5px; padding: 5px 8px; font-size: 0.82rem; outline: none; cursor: pointer; }
+select:focus { border-color: var(--primary); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: flex; align-items: center; justify-content: center; }
+.modal { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; min-width: 380px; max-width: 90vw; }
+.modal h3 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; }
+.modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+// ============================================================
+// MOCK DATA (replace API_BASE with your server URL when hosting)
+// ============================================================
+const API_BASE = 'http://77.42.23.93';
+
+const INITIAL_WATCHLIST = ['AAVE','ADA','ALGO','APT','ARB','ATOM','AVAX','AXS','BCH','BNB','BTC','COMP','CRV','DOGE','DOT','DYDX','ENS','EOS','ETH','FIL','FTM','GRT','HBAR','ICP','IMX','INJ','JASMY','LINK','LDO','LTC','MAGIC','MANA','MATIC','NEAR','OP','PEPE','QNT','RUNE','SAND','SHIB','SNX','SOL','STX','SUI','TON','TRX','UNI','USDC','VET','WLD','XLM','XMR','XRP','YFI','ZEC','ZRX','AMD','AAPL','TSLA','NVDA','COIN','MSTR','HOOD','META','AMZN','GOOGL','MSFT','NFLX','PLTR','AVGO','CRM','HD','NOW','FXI','YINN','BITX','ETHU','METU','AMDL','AVGX','CRMG','HOOG','NOWL','TSLL','NVDL','XRPT','MSTX'];
+
+const INITIAL_OPEN_TRADES = ['AMD','AMDL','AVGO','AVGX','BITX','COIN','CRM','CRMG','ETHU','ETHUSDT','FXI','HD','HOOD','HOOG','METU','MSTR','MSTX','NOW','NOWL','NVDA','NVDL','TSLA','TSLL','XRPT','YINN'];
+
+const INITIAL_RULES = [
+  {id:1, name:'Bearish short', match_field:'direction', match_contains:'short', column_name:'bearish', priority:1},
+  {id:2, name:'Bearish sell', match_field:'direction', match_contains:'sell', column_name:'bearish', priority:2},
+  {id:3, name:'2W Buy the Dip Alert', match_field:'strategy', match_contains:'Buy the Dip', column_name:'bullish', priority:3},
+  {id:4, name:'2W Sell the Rip', match_field:'strategy', match_contains:'Sell the Rip', column_name:'sell_calls', priority:4},
+  {id:5, name:'COVERED CALLS', match_field:'strategy', match_contains:'COVERED CALLS', column_name:'sell_calls', priority:5},
+];
+
+const INITIAL_ALERTS = [
+  {id:1,symbol:'BTC',asset_class:'crypto',direction:'long',message_raw:'BTC bullish breakout above resistance',strategy:'Trend Follow',timeframe:'4h',price:67500,exchange:'BINANCE',created_at:'2025-05-26T10:30:00Z'},
+  {id:2,symbol:'ETH',asset_class:'crypto',direction:'long',message_raw:'ETH bullish momentum continuation',strategy:'Trend Follow',timeframe:'1h',price:3800,exchange:'BINANCE',created_at:'2025-05-26T09:15:00Z'},
+  {id:3,symbol:'NVDA',asset_class:'stock',direction:'short',message_raw:'NVDA bearish divergence on daily',strategy:'Mean Reversion',timeframe:'1d',price:920,exchange:'NASDAQ',created_at:'2025-05-26T08:00:00Z'},
+  {id:4,symbol:'TSLA',asset_class:'stock',direction:'long',message_raw:'TSLA Buy the Dip Alert triggered',strategy:'Buy the Dip',timeframe:'4h',price:185,exchange:'NASDAQ',created_at:'2025-05-25T16:00:00Z'},
+  {id:5,symbol:'SOL',asset_class:'crypto',direction:'long',message_raw:'SOL bullish breakout',strategy:'Breakout',timeframe:'1h',price:175,exchange:'BINANCE',created_at:'2025-05-25T14:30:00Z'},
+  {id:6,symbol:'AAPL',asset_class:'stock',direction:'sell',message_raw:'AAPL COVERED CALLS setup',strategy:'COVERED CALLS',timeframe:'1d',price:189,exchange:'NASDAQ',created_at:'2025-05-25T12:00:00Z'},
+  {id:7,symbol:'BNB',asset_class:'crypto',direction:'long',message_raw:'BNB bullish continuation',strategy:'Trend Follow',timeframe:'4h',price:610,exchange:'BINANCE',created_at:'2025-05-25T10:00:00Z'},
+  {id:8,symbol:'COIN',asset_class:'stock',direction:'long',message_raw:'COIN breakout confirmed',strategy:'Breakout',timeframe:'1d',price:245,exchange:'NASDAQ',created_at:'2025-05-24T15:00:00Z'},
+  {id:9,symbol:'XRP',asset_class:'crypto',direction:'short',message_raw:'XRP Sell the Rip at resistance',strategy:'Sell the Rip',timeframe:'4h',price:0.55,exchange:'BINANCE',created_at:'2025-05-24T11:00:00Z'},
+  {id:10,symbol:'MSTR',asset_class:'stock',direction:'long',message_raw:'MSTR bullish momentum',strategy:'Trend Follow',timeframe:'1d',price:1450,exchange:'NASDAQ',created_at:'2025-05-24T09:00:00Z'},
+  {id:11,symbol:'AVAX',asset_class:'crypto',direction:'long',message_raw:'AVAX bullish breakout',strategy:'Breakout',timeframe:'4h',price:38,exchange:'BINANCE',created_at:'2025-05-23T17:00:00Z'},
+  {id:12,symbol:'META',asset_class:'stock',direction:'short',message_raw:'META bearish reversal signal',strategy:'Reversal',timeframe:'1d',price:510,exchange:'NASDAQ',created_at:'2025-05-23T14:00:00Z'},
+  {id:13,symbol:'DOT',asset_class:'crypto',direction:'long',message_raw:'DOT bullish signal',strategy:'Trend Follow',timeframe:'1h',price:8.5,exchange:'BINANCE',created_at:'2025-05-23T12:00:00Z'},
+  {id:14,symbol:'HOOD',asset_class:'stock',direction:'long',message_raw:'HOOD Buy the Dip Alert',strategy:'Buy the Dip',timeframe:'4h',price:22,exchange:'NASDAQ',created_at:'2025-05-23T10:00:00Z'},
+  {id:15,symbol:'LINK',asset_class:'crypto',direction:'long',message_raw:'LINK breakout above key level',strategy:'Breakout',timeframe:'4h',price:18,exchange:'BINANCE',created_at:'2025-05-22T16:00:00Z'},
+  {id:16,symbol:'AMD',asset_class:'stock',direction:'long',message_raw:'AMD bullish trend continuation',strategy:'Trend Follow',timeframe:'1d',price:175,exchange:'NASDAQ',created_at:'2025-05-22T14:00:00Z'},
+  {id:17,symbol:'DOGE',asset_class:'crypto',direction:'short',message_raw:'DOGE sell signal at resistance',strategy:'Sell the Rip',timeframe:'4h',price:0.16,exchange:'BINANCE',created_at:'2025-05-22T11:00:00Z'},
+  {id:18,symbol:'AVGO',asset_class:'stock',direction:'long',message_raw:'AVGO bullish momentum',strategy:'Trend Follow',timeframe:'1d',price:1650,exchange:'NASDAQ',created_at:'2025-05-21T15:00:00Z'},
+  {id:19,symbol:'ADA',asset_class:'crypto',direction:'long',message_raw:'ADA bullish reversal',strategy:'Reversal',timeframe:'4h',price:0.48,exchange:'BINANCE',created_at:'2025-05-21T13:00:00Z'},
+  {id:20,symbol:'CRM',asset_class:'stock',direction:'long',message_raw:'CRM breakout signal',strategy:'Breakout',timeframe:'1d',price:310,exchange:'NASDAQ',created_at:'2025-05-21T10:00:00Z'},
+  {id:21,symbol:'BTC',asset_class:'crypto',direction:'long',message_raw:'BTC strong accumulation zone',strategy:'Accumulation',timeframe:'1d',price:66800,exchange:'BINANCE',created_at:'2025-05-20T16:00:00Z'},
+  {id:22,symbol:'MATIC',asset_class:'crypto',direction:'short',message_raw:'MATIC bearish breakdown',strategy:'Breakdown',timeframe:'4h',price:0.72,exchange:'BINANCE',created_at:'2025-05-20T13:00:00Z'},
+  {id:23,symbol:'NOW',asset_class:'stock',direction:'long',message_raw:'NOW bullish breakout',strategy:'Breakout',timeframe:'1d',price:810,exchange:'NASDAQ',created_at:'2025-05-20T10:00:00Z'},
+  {id:24,symbol:'NEAR',asset_class:'crypto',direction:'long',message_raw:'NEAR Buy the Dip Alert',strategy:'Buy the Dip',timeframe:'4h',price:7.2,exchange:'BINANCE',created_at:'2025-05-19T17:00:00Z'},
+  {id:25,symbol:'HD',asset_class:'stock',direction:'long',message_raw:'HD bullish trend',strategy:'Trend Follow',timeframe:'1d',price:340,exchange:'NASDAQ',created_at:'2025-05-19T14:00:00Z'},
+];
+
+const SCREENER_DATA = [
+  {symbol:'BTC',weeklyRegime:'BULLISH',trigger12h:'BULLISH_CROSS',stochRsi12hCross:'none',price:67500,change24hPct:2.4,quoteVolume24h:28500000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'ETH',weeklyRegime:'BULLISH',trigger12h:'BULLISH_CROSS',stochRsi12hCross:'cross_down',price:3800,change24hPct:1.8,quoteVolume24h:14200000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'BNB',weeklyRegime:'BULLISH',trigger12h:'BULLISH',stochRsi12hCross:'none',price:610,change24hPct:0.5,quoteVolume24h:2100000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'SOL',weeklyRegime:'BULLISH',trigger12h:'BULLISH_CROSS',stochRsi12hCross:'none',price:175,change24hPct:3.2,quoteVolume24h:4800000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'XRP',weeklyRegime:'BEARISH',trigger12h:'BEARISH_CROSS',stochRsi12hCross:'cross_up',price:0.55,change24hPct:-1.2,quoteVolume24h:3200000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'ADA',weeklyRegime:'BULLISH',trigger12h:'BULLISH',stochRsi12hCross:'none',price:0.48,change24hPct:0.8,quoteVolume24h:980000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'AVAX',weeklyRegime:'BULLISH',trigger12h:'BULLISH_CROSS',stochRsi12hCross:'cross_down',price:38,change24hPct:4.1,quoteVolume24h:1450000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'DOT',weeklyRegime:'BEARISH',trigger12h:'BEARISH',stochRsi12hCross:'none',price:8.5,change24hPct:-0.9,quoteVolume24h:620000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'LINK',weeklyRegime:'BULLISH',trigger12h:'BULLISH',stochRsi12hCross:'cross_down',price:18,change24hPct:1.4,quoteVolume24h:890000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'DOGE',weeklyRegime:'BEARISH',trigger12h:'BEARISH_CROSS',stochRsi12hCross:'cross_up',price:0.16,change24hPct:-2.1,quoteVolume24h:1820000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'MATIC',weeklyRegime:'BEARISH',trigger12h:'BEARISH',stochRsi12hCross:'none',price:0.72,change24hPct:-1.5,quoteVolume24h:780000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'NEAR',weeklyRegime:'BULLISH',trigger12h:'BULLISH_CROSS',stochRsi12hCross:'none',price:7.2,change24hPct:5.3,quoteVolume24h:690000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'UNI',weeklyRegime:'BULLISH',trigger12h:'BULLISH',stochRsi12hCross:'none',price:10.8,change24hPct:2.0,quoteVolume24h:520000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'ATOM',weeklyRegime:'BEARISH',trigger12h:'BEARISH',stochRsi12hCross:'cross_up',price:9.2,change24hPct:-0.7,quoteVolume24h:410000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'ARB',weeklyRegime:'BULLISH',trigger12h:'BULLISH_CROSS',stochRsi12hCross:'none',price:1.15,change24hPct:3.8,quoteVolume24h:1200000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'OP',weeklyRegime:'BULLISH',trigger12h:'BULLISH',stochRsi12hCross:'cross_down',price:2.8,change24hPct:1.1,quoteVolume24h:580000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'FTM',weeklyRegime:'BEARISH',trigger12h:'BEARISH_CROSS',stochRsi12hCross:'none',price:0.95,change24hPct:-3.2,quoteVolume24h:340000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'AAVE',weeklyRegime:'BULLISH',trigger12h:'BULLISH',stochRsi12hCross:'none',price:95,change24hPct:0.6,quoteVolume24h:280000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'INJ',weeklyRegime:'BULLISH',trigger12h:'BULLISH_CROSS',stochRsi12hCross:'none',price:28,change24hPct:6.2,quoteVolume24h:950000000,updatedAt:'2025-05-26T10:00:00Z'},
+  {symbol:'SUI',weeklyRegime:'BULLISH',trigger12h:'BULLISH',stochRsi12hCross:'none',price:1.85,change24hPct:2.9,quoteVolume24h:870000000,updatedAt:'2025-05-26T10:00:00Z'},
+];
+
+// ============================================================
+// HELPERS
+// ============================================================
+function classifyAlert(alert, rules) {
+  for (const rule of [...rules].sort((a,b) => a.priority - b.priority)) {
+    const field = alert[rule.match_field] || '';
+    if (field.toLowerCase().includes(rule.match_contains.toLowerCase())) {
+      return rule.column_name;
+    }
+  }
+  if (alert.direction === 'long' || alert.direction === 'bullish') return 'bullish';
+  return 'bullish';
+}
+
+function isToday(dateStr) {
+  const d = new Date(dateStr);
+  const now = new Date();
+  return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+}
+
+function fmtTime(dateStr) {
+  const d = new Date(dateStr);
+  return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+function fmtDate(dateStr) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + fmtTime(dateStr);
+}
+
+function fmtVol(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(0) + 'M';
+  return n.toLocaleString();
+}
+
+function applyScreenerFilter(data, tab) {
+  switch(tab) {
+    case 'bullish_entry': return data.filter(r => r.weeklyRegime === 'BULLISH' && r.trigger12h === 'BULLISH_CROSS');
+    case 'bearish_entry': return data.filter(r => r.weeklyRegime === 'BEARISH' && r.trigger12h === 'BEARISH_CROSS');
+    case 'already_bullish': return data.filter(r => r.weeklyRegime === 'BULLISH' && (r.trigger12h === 'BULLISH' || r.trigger12h === 'BULLISH_CROSS'));
+    case 'already_bearish': return data.filter(r => r.weeklyRegime === 'BEARISH' && (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS'));
+    case 'exit_long': return data.filter(r => r.stochRsi12hCross === 'cross_down' && (r.trigger12h === 'BULLISH' || r.trigger12h === 'BULLISH_CROSS'));
+    case 'exit_short': return data.filter(r => r.stochRsi12hCross === 'cross_up' && (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS'));
+    case 'long_aggressive': return data.filter(r => (r.trigger12h === 'BULLISH' || r.trigger12h === 'BULLISH_CROSS') && r.stochRsi12hCross === 'none');
+    case 'short_aggressive': return data.filter(r => r.trigger12h === 'BEARISH' && r.stochRsi12hCross === 'cross_down');
+    default: return data;
+  }
+}
+
+// ============================================================
+// SVG ICONS
+// ============================================================
+const Icon = {
+  Star: ({filled, size=14}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+    </svg>
+  ),
+  Trash: ({size=14}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+    </svg>
+  ),
+  ExternalLink: ({size=13}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+    </svg>
+  ),
+  Search: ({size=14}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  ),
+  Menu: ({size=18}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  ),
+  AlertCircle: ({size=14}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+  ),
+  TrendingUp: ({size=14}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+    </svg>
+  ),
+  Layers: ({size=14}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+    </svg>
+  ),
+  BarChart: ({size=14}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+    </svg>
+  ),
+  List: ({size=14}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+      <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+    </svg>
+  ),
+  Bookmark: ({size=14}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+    </svg>
+  ),
+  Settings: ({size=14}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  ),
+  Moon: ({size=15}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  ),
+  Sun: ({size=15}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+  ),
+  Plus: ({size=14}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  ),
+  X: ({size=14}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  ),
+  Filter: ({size=14}) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+    </svg>
+  ),
+};
+
+// ============================================================
+// SIDEBAR
+// ============================================================
+function Sidebar({ currentPage, setPage }) {
+  const items = [
+    { section: 'ALERTS BOARD' },
+    { id: 'direction', label: 'Direction', icon: 'TrendingUp' },
+    { id: 'strategy', label: 'Strategy', icon: 'Layers' },
+    { id: 'feed', label: 'Live Feed', icon: 'List' },
+    { section: 'SCREENER' },
+    { id: 'screener', label: 'Crypto', icon: 'BarChart' },
+    { section: 'TRADING FILTERS' },
+    { id: 'watchlists', label: 'Watchlists', icon: 'Bookmark' },
+    { id: 'rules', label: 'Rules', icon: 'Filter' },
+    { id: 'settings', label: 'Site Settings', icon: 'Settings' },
+  ];
+  return (
+    <div className="sidebar">
+      <div className="sidebar-logo">
+        <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="28" height="28" rx="6" fill="hsl(190 80% 38%)"/>
+          <path d="M7 21L11 15L14 18L18 10L21 14" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <span>AlertCmd</span>
+      </div>
+      {items.map((item, i) => {
+        if (item.section) return <div key={i} className="sidebar-section">{item.section}</div>;
+        const IconComp = Icon[item.icon];
+        return (
+          <div
+            key={item.id}
+            className={`sidebar-item ${currentPage === item.id ? 'active' : ''}`}
+            onClick={() => setPage(item.id)}
+          >
+            {IconComp && <IconComp />}
+            {item.label}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================================
+// TOP NAV
+// ============================================================
+function TopNav({ assetFilter, setAssetFilter, searchQuery, setSearchQuery, darkMode, setDarkMode }) {
+  return (
+    <div className="topnav">
+      <span className="topnav-title">Alert Dashboard</span>
+      <div className="topnav-tabs">
+        {['All','Stocks','Crypto'].map(t => (
+          <button key={t} className={`topnav-tab ${assetFilter === t.toLowerCase() ? 'active' : ''}`} onClick={() => setAssetFilter(t.toLowerCase())}>{t}</button>
+        ))}
+      </div>
+      <div className="search-bar">
+        <Icon.Search />
+        <input placeholder="Search symbols..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+      </div>
+      <div className="topnav-right">
+        <button className="btn" style={{fontSize:'0.72rem',padding:'3px 8px'}}>1080p</button>
+        <button className="btn" style={{fontSize:'0.72rem',padding:'3px 8px'}}>4K</button>
+        <button className="icon-btn" onClick={() => {
+          setDarkMode(d => !d);
+          document.documentElement.classList.toggle('dark');
+        }}>
+          {darkMode ? <Icon.Sun /> : <Icon.Moon />}
+        </button>
+        <div style={{display:'flex',alignItems:'center',gap:5,fontSize:'0.75rem',color:'var(--green)'}}>
+          <div className="live-dot"/> Live
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// LIVE FEED PAGE
+// ============================================================
+function LiveFeed({ alerts, rules, openTrades, setOpenTrades, favorites, setFavorites, setAlerts, assetFilter, searchQuery }) {
+  const [activeFilter, setActiveFilter] = useState(null);
+
+  const filtered = useMemo(() => {
+    let list = [...alerts];
+    if (assetFilter !== 'all') list = list.filter(a => a.asset_class === (assetFilter === 'stocks' ? 'stock' : 'crypto'));
+    if (searchQuery) list = list.filter(a => a.symbol.toLowerCase().includes(searchQuery.toLowerCase()) || (a.message_raw||'').toLowerCase().includes(searchQuery.toLowerCase()));
+    if (activeFilter === 'today') list = list.filter(a => isToday(a.created_at));
+    if (activeFilter === 'open') list = list.filter(a => openTrades.includes(a.symbol));
+    if (activeFilter === 'favorites') list = list.filter(a => favorites.includes(a.id));
+    return list;
+  }, [alerts, assetFilter, searchQuery, activeFilter, openTrades, favorites]);
+
+  function getColBadge(alert) {
+    const col = classifyAlert(alert, rules);
+    if (col === 'bullish') return <span className="badge badge-bullish">Bullish</span>;
+    if (col === 'bearish') return <span className="badge badge-bearish">Bearish</span>;
+    if (col === 'sell_calls') return <span className="badge badge-sellcalls">Sell Calls</span>;
+    return <span className="badge badge-gray">{col}</span>;
+  }
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <span className="page-title">Live Feed</span>
+        <span className="count-text">{filtered.length} of {alerts.length} alerts</span>
+      </div>
+      <div className="filter-bar">
+        <button className={`filter-btn ${activeFilter === 'today' ? 'active' : ''}`} onClick={() => setActiveFilter(activeFilter === 'today' ? null : 'today')}>Today</button>
+        <button className={`filter-btn ${activeFilter === 'open' ? 'active' : ''}`} onClick={() => setActiveFilter(activeFilter === 'open' ? null : 'open')}>Open Trades</button>
+        <button className={`filter-btn ${activeFilter === 'favorites' ? 'active' : ''}`} onClick={() => setActiveFilter(activeFilter === 'favorites' ? null : 'favorites')}>Favorites</button>
+        <button className="filter-btn" onClick={() => setActiveFilter(null)}>Clear</button>
+      </div>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Symbol</th>
+              <th>#Price</th>
+              <th>Action</th>
+              <th>Interval</th>
+              <th>Message</th>
+              <th>Trade</th>
+              <th>Fav</th>
+              <th>Del</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(alert => (
+              <tr key={alert.id}>
+                <td className="mono" style={{fontSize:'0.75rem',whiteSpace:'nowrap'}}>
+                  {fmtDate(alert.created_at)}
+                  {isToday(alert.created_at) && <span className="today-badge">TODAY</span>}
+                </td>
+                <td><span className="mono" style={{fontWeight:700}}>{alert.symbol}</span></td>
+                <td className="mono">{alert.price ? (alert.price < 10 ? alert.price.toFixed(4) : alert.price.toFixed(2)) : '-'}</td>
+                <td>{alert.direction || '-'}</td>
+                <td>{alert.timeframe || '-'}</td>
+                <td style={{maxWidth:280}}>
+                  {getColBadge(alert)}
+                  <span style={{marginLeft:6,fontSize:'0.78rem',color:'var(--text2)'}}>{alert.message_raw}</span>
+                </td>
+                <td>
+                  <button
+                    className={`open-trade-btn ${openTrades.includes(alert.symbol) ? 'active' : ''}`}
+                    onClick={() => setOpenTrades(prev => prev.includes(alert.symbol) ? prev.filter(s => s !== alert.symbol) : [...prev, alert.symbol])}
+                  >
+                    {openTrades.includes(alert.symbol) ? 'OPEN' : 'Trade'}
+                  </button>
+                </td>
+                <td>
+                  <button
+                    className={`icon-btn ${favorites.includes(alert.id) ? 'active' : ''}`}
+                    onClick={() => setFavorites(prev => prev.includes(alert.id) ? prev.filter(x => x !== alert.id) : [...prev, alert.id])}
+                  >
+                    <Icon.Star filled={favorites.includes(alert.id)} />
+                  </button>
+                </td>
+                <td>
+                  <button
+                    className="icon-btn danger"
+                    onClick={() => setAlerts(prev => prev.filter(a => a.id !== alert.id))}
+                  >
+                    <Icon.Trash />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// DIRECTION BOARD PAGE
+// ============================================================
+function DirectionBoard({ alerts, rules, openTrades, favorites, setFavorites, setAlerts, assetFilter, searchQuery, watchlist }) {
+  const [filters, setFilters] = useState({ today: false, openOnly: false, dedupe: false });
+  const [watchlistFilter, setWatchlistFilter] = useState(null);
+
+  function toggleFilter(key) {
+    setFilters(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  const processedAlerts = useMemo(() => {
+    let list = [...alerts];
+    if (assetFilter !== 'all') list = list.filter(a => a.asset_class === (assetFilter === 'stocks' ? 'stock' : 'crypto'));
+    if (searchQuery) list = list.filter(a => a.symbol.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (filters.today) list = list.filter(a => isToday(a.created_at));
+    if (filters.openOnly) list = list.filter(a => openTrades.includes(a.symbol));
+    if (watchlistFilter) list = list.filter(a => a.symbol === watchlistFilter);
+    return list;
+  }, [alerts, assetFilter, searchQuery, filters, openTrades, watchlistFilter]);
+
+  const columns = useMemo(() => {
+    const cols = { bullish: [], bearish: [], sell_calls: [], open_trades: [] };
+    let symbolMap = {};
+    for (const alert of processedAlerts) {
+      const col = classifyAlert(alert, rules);
+      if (!cols[col]) cols[col] = [];
+      if (filters.dedupe) {
+        if (!symbolMap[col + alert.symbol]) {
+          symbolMap[col + alert.symbol] = 1;
+          cols[col].push(alert);
+        } else {
+          symbolMap[col + alert.symbol]++;
+          const existing = cols[col].find(a => a.symbol === alert.symbol);
+          if (existing) existing._count = symbolMap[col + alert.symbol];
+        }
+      } else {
+        cols[col].push(alert);
+      }
+    }
+    for (const sym of INITIAL_OPEN_TRADES) {
+      if (!filters.openOnly || openTrades.includes(sym)) {
+        const lastAlert = alerts.find(a => a.symbol === sym);
+        cols.open_trades.push({ id: 'ot_' + sym, symbol: sym, created_at: lastAlert?.created_at || new Date().toISOString(), _openTrade: true });
+      }
+    }
+    return cols;
+  }, [processedAlerts, filters, openTrades, alerts, rules]);
+
+  function SymCard({ alert, col }) {
+    const isFav = favorites.includes(alert.id);
+    return (
+      <div className="symbol-card">
+        <div>
+          <div style={{display:'flex',alignItems:'center',gap:5}}>
+            <span className="symbol-card-name">{alert.symbol}</span>
+            {alert._count > 1 && <span className="dup-badge">x{alert._count}</span>}
+          </div>
+          <div className="symbol-card-time">{fmtTime(alert.created_at)}</div>
+        </div>
+        <div className="symbol-card-actions">
+          {!alert._openTrade && (
+            <>
+              <button className={`icon-btn ${isFav ? 'active' : ''}`} onClick={() => setFavorites(prev => prev.includes(alert.id) ? prev.filter(x => x !== alert.id) : [...prev, alert.id])}>
+                <Icon.Star filled={isFav} size={12} />
+              </button>
+              <button className="icon-btn" onClick={() => window.open(`https://www.tradingview.com/chart/?symbol=${alert.symbol}`, '_blank')}>
+                <Icon.ExternalLink size={12} />
+              </button>
+              <button className="icon-btn danger" onClick={() => setAlerts(prev => prev.filter(a => a.id !== alert.id))}>
+                <Icon.Trash size={12} />
+              </button>
+            </>
+          )}
+          {alert._openTrade && (
+            <button className="icon-btn" onClick={() => window.open(`https://www.tradingview.com/chart/?symbol=${alert.symbol}`, '_blank')}>
+              <Icon.ExternalLink size={12} />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const colDefs = [
+    { key: 'bullish', label: 'Bullish', cls: 'bullish' },
+    { key: 'bearish', label: 'Bearish', cls: 'bearish' },
+    { key: 'sell_calls', label: 'Sell Calls', cls: 'sellcalls' },
+    { key: 'open_trades', label: 'Open Trades', cls: 'opentrades' },
+  ];
+
+  const watchlistSymbols = watchlist.slice(0, 20);
+
+  return (
+    <div className="page">
+      <div className="info-banner">
+        <Icon.AlertCircle size={15} />
+        Alerts are automatically routed to columns based on your rules. Click a symbol to view on TradingView.
+      </div>
+      <div className="page-header">
+        <span className="page-title">Direction Board</span>
+      </div>
+      <div className="filter-bar">
+        <button className={`filter-btn ${filters.today ? 'active' : ''}`} onClick={() => toggleFilter('today')}>Today</button>
+        <button className={`filter-btn ${filters.openOnly ? 'active' : ''}`} onClick={() => toggleFilter('openOnly')}>Open Trades Only</button>
+        <button className={`filter-btn ${filters.dedupe ? 'active' : ''}`} onClick={() => toggleFilter('dedupe')}>Dedupe</button>
+        {watchlistSymbols.map(s => (
+          <button key={s} className={`filter-btn ${watchlistFilter === s ? 'active' : ''}`} onClick={() => setWatchlistFilter(watchlistFilter === s ? null : s)} style={{fontSize:'0.7rem',padding:'3px 8px'}}>
+            {s}
+          </button>
+        ))}
+      </div>
+      <div className="kanban">
+        {colDefs.map(({ key, label, cls }) => (
+          <div key={key} className="kanban-col">
+            <div className={`kanban-header ${cls}`}>
+              <span>{label}</span>
+              <span>{columns[key]?.length || 0}</span>
+            </div>
+            <div className="kanban-body">
+              {(columns[key] || []).map(alert => (
+                <SymCard key={alert.id} alert={alert} col={key} />
+              ))}
+              {(!columns[key] || columns[key].length === 0) && (
+                <div style={{color:'var(--text2)',fontSize:'0.78rem',textAlign:'center',padding:'20px 0'}}>No alerts</div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// STRATEGY BOARD PAGE
+// ============================================================
+function StrategyBoard({ alerts, assetFilter, searchQuery }) {
+  const strategies = useMemo(() => {
+    let list = [...alerts];
+    if (assetFilter !== 'all') list = list.filter(a => a.asset_class === (assetFilter === 'stocks' ? 'stock' : 'crypto'));
+    if (searchQuery) list = list.filter(a => a.symbol.toLowerCase().includes(searchQuery.toLowerCase()));
+    const map = {};
+    for (const alert of list) {
+      const strat = alert.strategy || 'Uncategorized';
+      if (!map[strat]) map[strat] = [];
+      map[strat].push(alert);
+    }
+    return map;
+  }, [alerts, assetFilter, searchQuery]);
+
+  const stratKeys = Object.keys(strategies).sort();
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <span className="page-title">Strategy Board</span>
+        <span className="count-text">{stratKeys.length} strategies</span>
+      </div>
+      <div className="kanban">
+        {stratKeys.map(strat => (
+          <div key={strat} className="kanban-col">
+            <div className="kanban-header" style={{background:'var(--bg2)',color:'var(--text)',borderRadius:'6px 6px 0 0'}}>
+              <span style={{fontWeight:600,fontSize:'0.78rem'}}>{strat}</span>
+              <span style={{fontSize:'0.78rem'}}>{strategies[strat].length}</span>
+            </div>
+            <div className="kanban-body">
+              {strategies[strat].map(alert => (
+                <div key={alert.id} className="symbol-card" style={{cursor:'pointer'}} onClick={() => window.open(`https://www.tradingview.com/chart/?symbol=${alert.symbol}`, '_blank')}>
+                  <div>
+                    <div className="symbol-card-name">{alert.symbol}</div>
+                    <div className="symbol-card-time">{fmtDate(alert.created_at)}</div>
+                  </div>
+                  <Icon.ExternalLink size={11} />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// CRYPTO SCREENER PAGE
+// ============================================================
+const SCREENER_TABS = [
+  { id: 'bullish_entry', label: 'Bullish Trade Entry' },
+  { id: 'bearish_entry', label: 'Bearish Trade Entry' },
+  { id: 'already_bullish', label: 'Already Bullish' },
+  { id: 'already_bearish', label: 'Already Bearish' },
+  { id: 'exit_long', label: 'Exit Long' },
+  { id: 'exit_short', label: 'Exit Short' },
+  { id: 'long_aggressive', label: 'Long Aggressive' },
+  { id: 'short_aggressive', label: 'Short Aggressive' },
+  { id: 'all', label: 'All / Debug' },
+];
+
+function Screener({ watchlist }) {
+  const [activeTab, setActiveTab] = useState('bullish_entry');
+  const [screenerData, setScreenerData] = useState(SCREENER_DATA);
+  const [loading, setLoading] = useState(false);
+  const [favSymbols, setFavSymbols] = useState(watchlist);
+
+  async function refresh() {
+    setLoading(true);
+    try {
+      const r = await fetch(API_BASE + '/api/screener/live?smaTf=1w&smaLength=5&triggerTf=12h&macdFast=12&macdSlow=26&macdSignal=9&minQuoteVol=100000000');
+      if (r.ok) {
+        const data = await r.json();
+        setScreenerData(data);
+      }
+    } catch(e) {}
+    setLoading(false);
+  }
+
+  const filtered = useMemo(() => applyScreenerFilter(screenerData, activeTab), [screenerData, activeTab]);
+
+  function RegimeBadge({ val }) {
+    return val === 'BULLISH'
+      ? <span className="regime-bull">▲ BULL</span>
+      : <span className="regime-bear">▼ BEAR</span>;
+  }
+
+  function TriggerBadge({ val }) {
+    const isCross = val?.includes('CROSS');
+    const isBull = val?.includes('BULLISH');
+    return (
+      <span className={isBull ? 'macd-bull' : 'macd-bear'} style={{fontWeight: isCross ? 700 : 400}}>
+        {val || '-'}{isCross ? ' ⚡' : ''}
+      </span>
+    );
+  }
+
+  return (
+    <div className="page">
+      <div className="page-header" style={{justifyContent:'space-between'}}>
+        <span className="page-title">Crypto Screener</span>
+        <button className="btn btn-primary" onClick={refresh} disabled={loading}>
+          {loading ? 'Refreshing...' : '↻ Refresh'}
+        </button>
+      </div>
+      <div className="screener-tabs">
+        {SCREENER_TABS.map(t => (
+          <button key={t.id} className={`screener-tab ${activeTab === t.id ? 'active' : ''}`} onClick={() => setActiveTab(t.id)}>
+            {t.label} {activeTab === t.id && <span style={{marginLeft:4,opacity:0.7}}>({filtered.length})</span>}
+          </button>
+        ))}
+      </div>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>★</th>
+              <th>Symbol</th>
+              <th>Last</th>
+              <th>24h%</th>
+              <th>24h Vol</th>
+              <th>Weekly Regime</th>
+              <th>12H Trigger</th>
+              <th>StochRSI</th>
+              <th>Updated</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(row => (
+              <tr key={row.symbol} style={{cursor:'pointer'}} onClick={() => window.open(`https://www.tradingview.com/chart/?symbol=${row.symbol}USDT`, '_blank')}>
+                <td>
+                  <button className={`icon-btn ${favSymbols.includes(row.symbol) ? 'active' : ''}`} onClick={e => { e.stopPropagation(); setFavSymbols(prev => prev.includes(row.symbol) ? prev.filter(s => s !== row.symbol) : [...prev, row.symbol]); }}>
+                    <Icon.Star filled={favSymbols.includes(row.symbol)} size={13} />
+                  </button>
+                </td>
+                <td><span className="mono" style={{fontWeight:700}}>{row.symbol}</span></td>
+                <td className="mono">{row.price ? (row.price < 10 ? row.price.toFixed(4) : row.price.toFixed(2)) : '-'}</td>
+                <td className={`mono ${row.change24hPct >= 0 ? 'text-green' : 'text-red'}`}>
+                  {row.change24hPct >= 0 ? '+' : ''}{row.change24hPct?.toFixed(2)}%
+                </td>
+                <td className="mono">{fmtVol(row.quoteVolume24h)}</td>
+                <td><RegimeBadge val={row.weeklyRegime} /></td>
+                <td><TriggerBadge val={row.trigger12h} /></td>
+                <td style={{fontSize:'0.75rem'}}>
+                  {row.stochRsi12hCross === 'cross_up' ? <span className="text-green">↑ Cross Up</span>
+                   : row.stochRsi12hCross === 'cross_down' ? <span className="text-red">↓ Cross Down</span>
+                   : <span style={{color:'var(--text2)'}}>—</span>}
+                </td>
+                <td style={{fontSize:'0.72rem',color:'var(--text2)'}}>{fmtTime(row.updatedAt)}</td>
+              </tr>
+            ))}
+            {filtered.length === 0 && (
+              <tr><td colSpan="9" style={{textAlign:'center',padding:'24px',color:'var(--text2)'}}>No results for this filter</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// WATCHLISTS PAGE
+// ============================================================
+function Watchlists({ watchlist, setWatchlist }) {
+  const [newSym, setNewSym] = useState('');
+
+  function addSymbol() {
+    const sym = newSym.trim().toUpperCase();
+    if (sym && !watchlist.includes(sym)) {
+      setWatchlist(prev => [...prev, sym].sort());
+      setNewSym('');
+    }
+  }
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <span className="page-title">Watchlists</span>
+        <span className="count-text">{watchlist.length} symbols</span>
+      </div>
+      <div className="add-symbol-form">
+        <input
+          placeholder="Add symbol (e.g. BTC, AAPL)..."
+          value={newSym}
+          onChange={e => setNewSym(e.target.value.toUpperCase())}
+          onKeyDown={e => e.key === 'Enter' && addSymbol()}
+        />
+        <button className="btn btn-primary" onClick={addSymbol}>
+          <Icon.Plus size={13} /> Add
+        </button>
+      </div>
+      <div style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,padding:16}}>
+        <div style={{fontWeight:600,fontSize:'0.85rem',marginBottom:12}}>Favorite Symbols</div>
+        <div className="watchlist-grid">
+          {watchlist.map(sym => (
+            <div key={sym} className="watchlist-chip">
+              {sym}
+              <button onClick={() => setWatchlist(prev => prev.filter(s => s !== sym))} title="Remove">×</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// RULES PAGE
+// ============================================================
+function Rules({ rules, setRules }) {
+  const [form, setForm] = useState({ name: '', match_field: 'direction', match_contains: '', column_name: 'bullish' });
+  const [showForm, setShowForm] = useState(false);
+
+  function addRule() {
+    if (!form.name || !form.match_contains) return;
+    const newRule = { ...form, id: Date.now(), priority: rules.length + 1 };
+    setRules(prev => [...prev, newRule]);
+    setForm({ name: '', match_field: 'direction', match_contains: '', column_name: 'bullish' });
+    setShowForm(false);
+  }
+
+  const cols = { bullish: [], bearish: [], sell_calls: [] };
+  for (const rule of rules) {
+    if (cols[rule.column_name]) cols[rule.column_name].push(rule);
+  }
+
+  const colDefs = [
+    { key: 'bullish', label: 'Bullish', cls: 'bullish' },
+    { key: 'bearish', label: 'Bearish', cls: 'bearish' },
+    { key: 'sell_calls', label: 'Sell Calls', cls: 'sellcalls' },
+  ];
+
+  return (
+    <div className="page">
+      <div className="page-header" style={{justifyContent:'space-between'}}>
+        <span className="page-title">Rules</span>
+        <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
+          <Icon.Plus size={13} /> Add Rule
+        </button>
+      </div>
+      {showForm && (
+        <div className="rule-form">
+          <h3>New Routing Rule</h3>
+          <div className="form-row">
+            <div className="form-field">
+              <label>Rule Name</label>
+              <input placeholder="e.g. Bearish short" value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} />
+            </div>
+            <div className="form-field">
+              <label>Match Field</label>
+              <select value={form.match_field} onChange={e => setForm(f => ({...f, match_field: e.target.value}))}>
+                <option value="direction">Direction</option>
+                <option value="strategy">Strategy</option>
+              </select>
+            </div>
+            <div className="form-field">
+              <label>Contains</label>
+              <input placeholder="e.g. short, buy the dip..." value={form.match_contains} onChange={e => setForm(f => ({...f, match_contains: e.target.value}))} />
+            </div>
+            <div className="form-field">
+              <label>Route To</label>
+              <select value={form.column_name} onChange={e => setForm(f => ({...f, column_name: e.target.value}))}>
+                <option value="bullish">Bullish</option>
+                <option value="bearish">Bearish</option>
+                <option value="sell_calls">Sell Calls</option>
+              </select>
+            </div>
+            <button className="btn btn-primary" onClick={addRule}>Save Rule</button>
+            <button className="btn" onClick={() => setShowForm(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+      <div style={{display:'flex',gap:16}}>
+        {colDefs.map(({ key, label, cls }) => (
+          <div key={key} style={{flex:1}}>
+            <div className={`kanban-header ${cls}`} style={{borderRadius:6,marginBottom:8}}>
+              <span>{label}</span>
+              <span>{cols[key].length}</span>
+            </div>
+            {cols[key].map(rule => (
+              <div key={rule.id} className="rule-card">
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                  <div>
+                    <div style={{fontWeight:600,fontSize:'0.85rem'}}>{rule.name}</div>
+                    <div style={{fontSize:'0.75rem',color:'var(--text2)',marginTop:3}}>
+                      When <strong>{rule.match_field}</strong> contains "<strong>{rule.match_contains}</strong>"
+                    </div>
+                    <div style={{fontSize:'0.72rem',color:'var(--text2)',marginTop:2}}>Priority: {rule.priority}</div>
+                  </div>
+                  <button className="icon-btn danger" onClick={() => setRules(prev => prev.filter(r => r.id !== rule.id))}>
+                    <Icon.Trash size={13} />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {cols[key].length === 0 && (
+              <div style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,padding:16,textAlign:'center',color:'var(--text2)',fontSize:'0.78rem'}}>
+                No rules
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// SETTINGS PAGE
+// ============================================================
+function Settings({ darkMode, setDarkMode }) {
+  const [headerStyle, setHeaderStyle] = useState('dark-green');
+  const [sidebarFont, setSidebarFont] = useState('inter');
+  const [compactMode, setCompactMode] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [refreshInterval, setRefreshInterval] = useState(30);
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <span className="page-title">Site Settings</span>
+      </div>
+      <div className="settings-section">
+        <h3>Appearance</h3>
+        <div className="settings-row">
+          <div>
+            <div className="settings-label">Dark Mode</div>
+            <div className="settings-desc">Toggle between light and dark theme</div>
+          </div>
+          <label className="toggle">
+            <input type="checkbox" checked={darkMode} onChange={e => {
+              setDarkMode(e.target.checked);
+              document.documentElement.classList.toggle('dark', e.target.checked);
+            }} />
+            <span className="toggle-slider"/>
+          </label>
+        </div>
+        <div className="settings-row">
+          <div>
+            <div className="settings-label">Column Header Style</div>
+            <div className="settings-desc">Style for Bullish/Bearish/Sell Calls headers</div>
+          </div>
+          <select value={headerStyle} onChange={e => setHeaderStyle(e.target.value)}>
+            <option value="dark-green">Dark Green</option>
+            <option value="colored">Colored</option>
+            <option value="minimal">Minimal</option>
+          </select>
+        </div>
+        <div className="settings-row">
+          <div>
+            <div className="settings-label">Sidebar Font</div>
+            <div className="settings-desc">Font family for sidebar navigation</div>
+          </div>
+          <select value={sidebarFont} onChange={e => setSidebarFont(e.target.value)}>
+            <option value="inter">Inter</option>
+            <option value="jetbrains">JetBrains Mono</option>
+            <option value="system">System Default</option>
+          </select>
+        </div>
+        <div className="settings-row">
+          <div>
+            <div className="settings-label">Compact Mode</div>
+            <div className="settings-desc">Reduce padding and card sizes</div>
+          </div>
+          <label className="toggle">
+            <input type="checkbox" checked={compactMode} onChange={e => setCompactMode(e.target.checked)} />
+            <span className="toggle-slider"/>
+          </label>
+        </div>
+      </div>
+      <div className="settings-section">
+        <h3>Data & Refresh</h3>
+        <div className="settings-row">
+          <div>
+            <div className="settings-label">Auto Refresh</div>
+            <div className="settings-desc">Automatically refresh screener data</div>
+          </div>
+          <label className="toggle">
+            <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} />
+            <span className="toggle-slider"/>
+          </label>
+        </div>
+        <div className="settings-row">
+          <div>
+            <div className="settings-label">Refresh Interval</div>
+            <div className="settings-desc">How often to refresh live data (seconds)</div>
+          </div>
+          <select value={refreshInterval} onChange={e => setRefreshInterval(Number(e.target.value))}>
+            <option value={15}>15s</option>
+            <option value={30}>30s</option>
+            <option value={60}>60s</option>
+            <option value={120}>2min</option>
+          </select>
+        </div>
+      </div>
+      <div className="settings-section">
+        <h3>About</h3>
+        <div className="settings-row">
+          <div>
+            <div className="settings-label">Version</div>
+          </div>
+          <span style={{fontSize:'0.82rem',color:'var(--text2)'}}>1.0.0</span>
+        </div>
+        <div className="settings-row">
+          <div>
+            <div className="settings-label">API Backend</div>
+          </div>
+          <span style={{fontSize:'0.82rem',color:'var(--text2)',fontFamily:'monospace'}}>{API_BASE}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// MAIN APP
+// ============================================================
+function App() {
+  const [currentPage, setCurrentPage] = useState('direction');
+  const [alerts, setAlerts] = useState(INITIAL_ALERTS);
+  const [watchlist, setWatchlist] = useState(INITIAL_WATCHLIST);
+  const [openTrades, setOpenTrades] = useState(INITIAL_OPEN_TRADES);
+  const [rules, setRules] = useState(INITIAL_RULES);
+  const [favorites, setFavorites] = useState([]);
+  const [assetFilter, setAssetFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [darkMode, setDarkMode] = useState(true);
+
+  // Try to load live data from API
+  useEffect(() => {
+    fetch(API_BASE + '/api/bootstrap')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        if (data.alerts?.length) setAlerts(data.alerts);
+        if (data.watchlist?.length) setWatchlist(data.watchlist.map(w => w.symbol || w));
+        if (data.openTrades?.length) setOpenTrades(data.openTrades.map(t => t.symbol || t));
+        if (data.rules?.length) setRules(data.rules);
+      })
+      .catch(() => {});
+  }, []);
+
+  const sharedProps = { alerts, setAlerts, rules, openTrades, setOpenTrades, favorites, setFavorites, assetFilter, searchQuery, watchlist, setWatchlist };
+
+  return (
+    <div className="app">
+      <Sidebar currentPage={currentPage} setPage={setCurrentPage} />
+      <div className="main">
+        <TopNav assetFilter={assetFilter} setAssetFilter={setAssetFilter} searchQuery={searchQuery} setSearchQuery={setSearchQuery} darkMode={darkMode} setDarkMode={setDarkMode} />
+        {currentPage === 'feed' && <LiveFeed {...sharedProps} />}
+        {currentPage === 'direction' && <DirectionBoard {...sharedProps} />}
+        {currentPage === 'strategy' && <StrategyBoard alerts={alerts} assetFilter={assetFilter} searchQuery={searchQuery} />}
+        {currentPage === 'screener' && <Screener watchlist={watchlist} />}
+        {currentPage === 'watchlists' && <Watchlists watchlist={watchlist} setWatchlist={setWatchlist} />}
+        {currentPage === 'rules' && <Rules rules={rules} setRules={setRules} />}
+        {currentPage === 'settings' && <Settings darkMode={darkMode} setDarkMode={setDarkMode} />}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -1,7 +1,19 @@
 {
-  "alerts": [],
+  "alerts": [
+    {
+      "id": "1779834753737test",
+      "symbol": "BTCUSDT",
+      "price": 75813.33,
+      "strategy": "2W Buy the Dip",
+      "direction": "long",
+      "timeframe": "1",
+      "messageRaw": "Test alert via manual inject",
+      "assetClass": "crypto",
+      "createdAt": "2026-05-26T22:32:33.737Z"
+    }
+  ],
   "watchlist": [],
   "openTrades": [],
   "rules": [],
-  "updatedAt": "2026-05-26T22:19:13.917Z"
+  "updatedAt": "2026-05-26T22:32:33.737Z"
 }

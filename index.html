@@ -248,8 +248,8 @@ const { useState, useEffect, useCallback, useMemo, useRef, createContext, useCon
 // ============================================================
 // CONSTANTS
 // ============================================================
-const API_BASE = 'https://eo7d61ick37ytv5.m.pipedream.net';  // Uses same-origin (your server must serve this file, or change to 'http://77.42.23.93')
-const POLL_INTERVAL = 10000;  // 10 seconds - matches original app
+const API_BASE = 'https://raw.githubusercontent.com/purabmehta/AlertCMD_Claude/main/data/alerts.json';  // Uses same-origin (your server must serve this file, or change to 'http://77.42.23.93')
+const POLL_INTERVAL = 30000;  // 10 seconds - matches original app
 const SCREENER_POLL_INTERVAL = 30000;  // 30 seconds - matches original app
 
 const BOARD_COLUMNS = [
@@ -308,7 +308,7 @@ function useTradingStore() {
 
   const deleteAlert = useCallback(async (id) => {
     setAlerts(prev => prev.filter(a => a.id !== id));
-    try { await fetch('https://eooxqyxw7jfiro6.m.pipedream.net', { method: 'DELETE' }); } catch(e) {}
+    // alert removed from local state only
   }, []);
 
   const addToWatchlist = useCallback(async (symbol) => {

@@ -15,7 +15,7 @@
   --background: 220 20% 97%;
   --foreground: 220 15% 20%;
   --card: 0 0% 100%;
-  --card-foreground: 220 15% 20%;
+  --card-foreground: 220 15% 20%;h
   --card-elevated: 220 15% 96%;
   --border: 220 15% 88%;
   --muted: 220 14% 95%;
@@ -286,7 +286,7 @@ function useTradingStore() {
 
   const fetchBootstrap = useCallback(async () => {
     try {
-      const res = await fetch(API_BASE + '/api/bootstrap');
+      const res = await fetch(API_BASE);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       if (data.alerts) setAlerts(data.alerts);
@@ -308,7 +308,7 @@ function useTradingStore() {
 
   const deleteAlert = useCallback(async (id) => {
     setAlerts(prev => prev.filter(a => a.id !== id));
-    try { await fetch(API_BASE + '/api/alerts/' + id, { method: 'DELETE' }); } catch(e) {}
+    try { await fetch('https://eooxqyxw7jfiro6.m.pipedream.net', { method: 'DELETE' }); } catch(e) {}
   }, []);
 
   const addToWatchlist = useCallback(async (symbol) => {

@@ -282,6 +282,7 @@ function useTradingStore() {
   const [alerts, setAlerts] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
   const [openTrades, setOpenTrades] = useState([]);
+  const [openTradesIds, setOpenTradesIds] = useState({}); // symbol -> KV id, for DELETE
   const [rules, setRules] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [assetFilter, setAssetFilter] = useState('all');
@@ -295,7 +296,13 @@ function useTradingStore() {
       const data = await res.json();
       if (data.alerts) setAlerts(data.alerts);
       if (data.watchlist) setWatchlist(Array.isArray(data.watchlist) ? data.watchlist.map(w => typeof w === 'string' ? w : w.symbol) : []);
-      if (data.openTrades) setOpenTrades(Array.isArray(data.openTrades) ? data.openTrades.map(t => typeof t === 'string' ? t : t.symbol) : []);
+      if (data.openTrades) {
+        const arr = Array.isArray(data.openTrades) ? data.openTrades : [data.openTrades].filter(Boolean);
+        setOpenTrades(arr.map(t => typeof t === 'string' ? t : t.symbol));
+        const ids = {};
+        arr.forEach(t => { if (t && typeof t !== 'string' && t.id) ids[t.symbol] = t.id; });
+        setOpenTradesIds(ids);
+      }
       if (data.rules) setRules(data.rules);
       setLastUpdated(new Date());
       setIsLive(true);
@@ -312,7 +319,6 @@ function useTradingStore() {
 
   const deleteAlert = useCallback(async (id) => {
     setAlerts(prev => prev.filter(a => a.id !== id));
-    // alert removed from local state only
   }, []);
 
   const addToWatchlist = useCallback(async (symbol) => {
@@ -332,15 +338,25 @@ function useTradingStore() {
   const addOpenTrade = useCallback(async (symbol) => {
     if (openTrades.includes(symbol)) return;
     setOpenTrades(prev => [...prev, symbol]);
+    const latestAlert = alerts.find(a => a.symbol === symbol);
     try {
-      await fetch(API_BASE + '/api/open-trades', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({symbol}) });
+      const body = { symbol, strategy: latestAlert?.strategy || '', direction: latestAlert?.direction || '', price: latestAlert?.price || null };
+      const res = await fetch(API_BASE + '/api/open-trades', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.trade?.id) setOpenTradesIds(prev => ({ ...prev, [symbol]: json.trade.id }));
+      }
     } catch(e) {}
-  }, [openTrades]);
+  }, [openTrades, alerts]);
 
   const removeOpenTrade = useCallback(async (symbol) => {
     setOpenTrades(prev => prev.filter(s => s !== symbol));
-    try { await fetch(API_BASE + '/api/open-trades/' + symbol, { method: 'DELETE' }); } catch(e) {}
-  }, []);
+    const tradeId = openTradesIds[symbol];
+    setOpenTradesIds(prev => { const n = {...prev}; delete n[symbol]; return n; });
+    if (tradeId) {
+      try { await fetch(API_BASE + '/api/open-trades/' + tradeId, { method: 'DELETE' }); } catch(e) {}
+    }
+  }, [openTradesIds]);
 
   const addRule = useCallback(async (rule) => {
     try {
@@ -1176,35 +1192,61 @@ function CryptoScreener() {
 // WATCHLISTS
 // ============================================================
 function Watchlists() {
-  const { watchlist, addToWatchlist, removeFromWatchlist } = useTrading();
+  const { watchlist, openTrades, addToWatchlist, removeFromWatchlist, toggleOpenTrade } = useTrading();
   const [newSym, setNewSym] = useState('');
+  const [newOpenSym, setNewOpenSym] = useState('');
 
   function handleAdd() {
     const sym = newSym.trim().toUpperCase();
     if (sym) { addToWatchlist(sym); setNewSym(''); }
   }
 
+  function handleAddOpen() {
+    const sym = newOpenSym.trim().toUpperCase();
+    if (sym) { toggleOpenTrade(sym); setNewOpenSym(''); }
+  }
+
   return (
     <div className="page">
       <div className="page-header">
         <span className="page-title">Watchlists</span>
-        <span className="count-badge">{watchlist.length} symbols</span>
+        <span className="count-badge">{watchlist.length} watched - {openTrades.length} open</span>
       </div>
-      <div style={{display:'flex',gap:8,marginBottom:16}}>
-        <input className="form-input" style={{maxWidth:240}} placeholder="Add symbol (e.g. BTC, AAPL)..."
-          value={newSym} onChange={e => setNewSym(e.target.value.toUpperCase())}
-          onKeyDown={e => e.key === 'Enter' && handleAdd()} />
-        <button className="btn btn-primary" onClick={handleAdd} style={{display:'flex',gap:5,alignItems:'center'}}>
-          <I.Plus s={13}/> Add
-        </button>
+      <div className="form-card" style={{marginBottom:16}}>
+        <div style={{fontWeight:600,fontSize:'0.85rem',marginBottom:12,color:'var(--open-trades-text,#16a34a)'}}>OPEN TRADES</div>
+        <div style={{display:'flex',gap:8,marginBottom:12}}>
+          <input className="form-input" style={{maxWidth:240}} placeholder="Add open trade symbol..."
+            value={newOpenSym} onChange={e => setNewOpenSym(e.target.value.toUpperCase())}
+            onKeyDown={e => e.key === 'Enter' && handleAddOpen()} />
+          <button className="btn btn-primary" onClick={handleAddOpen} style={{display:'flex',gap:5,alignItems:'center'}}>
+            <I.Plus s={13}/> Add
+          </button>
+        </div>
+        <div className="watchlist-grid">
+          {openTrades.map(sym => (
+            <div key={sym} className="watchlist-chip" style={{background:'var(--open-trades-bg,#dcfce7)',color:'var(--open-trades-text,#16a34a)',borderColor:'var(--open-trades-border,#86efac)'}}>
+              {sym}
+              <button className="watchlist-chip-del" onClick={() => toggleOpenTrade(sym)} style={{color:'var(--open-trades-text,#16a34a)'}}>x</button>
+            </div>
+          ))}
+          {openTrades.length === 0 && <span style={{color:'hsl(var(--muted-foreground))',fontSize:'0.82rem'}}>No open trades</span>}
+        </div>
       </div>
       <div className="form-card">
         <div style={{fontWeight:600,fontSize:'0.85rem',marginBottom:12,color:'hsl(var(--muted-foreground))'}}>FAVORITE SYMBOLS</div>
+        <div style={{display:'flex',gap:8,marginBottom:12}}>
+          <input className="form-input" style={{maxWidth:240}} placeholder="Add symbol (e.g. BTC, AAPL)..."
+            value={newSym} onChange={e => setNewSym(e.target.value.toUpperCase())}
+            onKeyDown={e => e.key === 'Enter' && handleAdd()} />
+          <button className="btn btn-primary" onClick={handleAdd} style={{display:'flex',gap:5,alignItems:'center'}}>
+            <I.Plus s={13}/> Add
+          </button>
+        </div>
         <div className="watchlist-grid">
           {watchlist.map(sym => (
             <div key={sym} className="watchlist-chip">
               {sym}
-              <button className="watchlist-chip-del" onClick={() => removeFromWatchlist(sym)}>Ã</button>
+              <button className="watchlist-chip-del" onClick={() => removeFromWatchlist(sym)}>x</button>
             </div>
           ))}
           {watchlist.length === 0 && <span style={{color:'hsl(var(--muted-foreground))',fontSize:'0.82rem'}}>No symbols in watchlist yet</span>}

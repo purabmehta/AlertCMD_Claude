@@ -1069,7 +1069,14 @@ function CryptoScreener() {
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    setRowsRaw(data.results || []);
+    setRowsRaw((() => {
+          const seen = new Map();
+          for (const r of (data.results || [])) {
+            const prev = seen.get(r.symbol);
+            if (!prev || r.updatedAt > prev.updatedAt) seen.set(r.symbol, r);
+          }
+          return [...seen.values()];
+        })());
     if (data.updatedAt) setEngineUpdatedAt(data.updatedAt);
     if (data.totalPairs) setTotalPairs(data.totalPairs);
     if (data.scannedPairs) setScannedPairs(data.scannedPairs);

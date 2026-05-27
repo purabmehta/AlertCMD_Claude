@@ -918,13 +918,23 @@ function DirectionBoard() {
 // STRATEGY BOARD
 // ============================================================
 function StrategyBoard() {
-  const { alerts, searchQuery, assetFilter } = useTrading();
+  const { alerts, rules, openTrades, searchQuery, assetFilter } = useTrading();
+  const [todayOnly, setTodayOnly] = React.useState(false);
+  const [openTradeOnly, setOpenTradeOnly] = React.useState(false);
+  const [dedupeMode, setDedupeMode] = React.useState(false);
+  const [signalFilter, setSignalFilter] = React.useState('all');
+
+  const COL_CLASS = { bullish: 'bullish', bearish: 'bearish', sell_calls: 'sell' };
+  const todayStr = new Date().toISOString().slice(0, 10);
 
   const strategies = useMemo(() => {
     let list = [...alerts];
     if (assetFilter === 'stocks') list = list.filter(a => (a.assetClass||a.asset_class) === 'stock');
     else if (assetFilter === 'crypto') list = list.filter(a => (a.assetClass||a.asset_class) === 'crypto');
     if (searchQuery) { const q = searchQuery.toLowerCase(); list = list.filter(a => (a.symbol||'').toLowerCase().includes(q)); }
+    if (todayOnly) list = list.filter(a => (a.createdAt||a.created_at||'').startsWith(todayStr));
+    if (openTradeOnly) list = list.filter(a => openTrades.includes(a.symbol));
+    if (signalFilter !== 'all') list = list.filter(a => routeColumn(a, rules) === signalFilter);
     const map = {};
     for (const alert of list) {
       const s = alert.strategy || 'Uncategorized';
@@ -932,36 +942,75 @@ function StrategyBoard() {
       map[s].push(alert);
     }
     return map;
-  }, [alerts, assetFilter, searchQuery]);
+  }, [alerts, assetFilter, searchQuery, todayOnly, openTradeOnly, signalFilter, openTrades, rules, todayStr]);
 
   const stratKeys = Object.keys(strategies).sort();
+  const totalAlerts = stratKeys.reduce((n, s) => n + strategies[s].length, 0);
+
+  function getStratRoute(stratName) {
+    return routeColumn({ strategy: stratName, direction: '' }, rules);
+  }
+
+  function getDeduped(cards) {
+    if (!dedupeMode) return cards.map(a => ({ ...a, _count: 1 }));
+    const sorted = [...cards].sort((a, b) => {
+      const at = a.createdAt||a.created_at||'', bt = b.createdAt||b.created_at||'';
+      return bt > at ? 1 : -1;
+    });
+    const seen = {};
+    const result = [];
+    for (const alert of sorted) {
+      if (!seen[alert.symbol]) { seen[alert.symbol] = { ...alert, _count: 1 }; result.push(seen[alert.symbol]); }
+      else { seen[alert.symbol]._count++; }
+    }
+    return result;
+  }
 
   return (
     <div className="page">
       <div className="page-header">
         <span className="page-title">Strategy Board</span>
-        <span className="count-badge">{stratKeys.length} strategies Â· {alerts.length} alerts</span>
+        <span className="count-badge">{stratKeys.length} strategies - {totalAlerts} alerts</span>
+      </div>
+      <div className="filter-bar">
+        <button className={'filter-chip' + (todayOnly ? ' active' : '')} onClick={() => setTodayOnly(v => !v)}>Today</button>
+        <button className={'filter-chip' + (openTradeOnly ? ' active' : '')} onClick={() => setOpenTradeOnly(v => !v)}>Open Trades Only</button>
+        <button className={'filter-chip' + (dedupeMode ? ' active' : '')} style={dedupeMode ? {background:'#d97706',color:'white',borderColor:'#d97706'} : {}} onClick={() => setDedupeMode(v => !v)}>Dedupe</button>
+        <div style={{marginLeft:'auto',display:'flex',gap:5,flexWrap:'wrap'}}>
+          {[['all','All Signals'],['bullish','Bullish'],['bearish','Bearish'],['sell_calls','Sell Calls']].map(([id,label]) => (
+            <button key={id} className={'filter-chip' + (signalFilter === id ? ' active' : '')} onClick={() => setSignalFilter(id)}>{label}</button>
+          ))}
+        </div>
       </div>
       <div className="kanban">
-        {stratKeys.map(strat => (
-          <div key={strat} className="kanban-col">
-            <div className="kanban-header strategy">
-              <span style={{fontSize:'0.75rem'}}>{strat}</span>
-              <span style={{fontSize:'0.82rem'}}>{strategies[strat].length}</span>
-            </div>
-            <div className="kanban-body">
-              {strategies[strat].map(alert => (
-                <div key={alert.id} className="sym-card" style={{cursor:'pointer'}} onClick={() => window.open('https://www.tradingview.com/chart/?symbol=' + alert.symbol, '_blank')}>
-                  <div>
-                    <div className="sym-card-name">{alert.symbol}</div>
-                    <div className="sym-card-sub">{fmtDate(alert.createdAt || alert.created_at)}</div>
+        {stratKeys.map(strat => {
+          const route = getStratRoute(strat);
+          const cls = COL_CLASS[route] || 'strategy';
+          const cards = getDeduped(strategies[strat]);
+          return (
+            <div key={strat} className="kanban-col">
+              <div className={'kanban-header ' + cls}>
+                <span style={{fontSize:'0.75rem',flex:1}}>{strat}</span>
+                <span style={{fontSize:'0.82rem'}}>{cards.length}</span>
+              </div>
+              <div className="kanban-body">
+                {cards.map(alert => (
+                  <div key={alert.id} className="sym-card" style={{cursor:'pointer'}} onClick={() => window.open('https://www.tradingview.com/chart/?symbol=' + alert.symbol, '_blank')}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:'flex',alignItems:'center',gap:5}}>
+                        <span className="sym-card-name">{alert.symbol}</span>
+                        {alert._count > 1 && <span style={{background:'#d97706',color:'white',borderRadius:10,fontSize:'0.62rem',fontWeight:800,padding:'1px 5px'}}>x{alert._count}</span>}
+                        {openTrades.includes(alert.symbol) && <span className="badge badge-open" style={{fontSize:'0.58rem',padding:'1px 5px'}}>OPEN</span>}
+                      </div>
+                      <div className="sym-card-sub">{timeAgo(alert.createdAt || alert.created_at)}</div>
+                    </div>
+                    <I.Link s={11}/>
                   </div>
-                  <I.Link s={11}/>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {stratKeys.length === 0 && (
           <div style={{padding:'32px',color:'hsl(var(--muted-foreground))'}}>No alerts loaded yet</div>
         )}

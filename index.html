@@ -9,7 +9,7 @@ h<!DOCTYPE html>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-<style>
+<style>h
 /* Design tokens from original AlertCMD */
 :root {
   --background: 220 20% 97%;
@@ -18,7 +18,7 @@ h<!DOCTYPE html>
   --card-foreground: 220 15% 20%;
   --card-elevated: 220 15% 96%;
   --border: 220 15% 88%;
-  --muted: 220 14% 95%;
+  --muted: 220 14% 95%;h
   --muted-foreground: 215 12% 50%;
   --primary: 190 70% 42%;
   --primary-foreground: 220 20% 98%;
@@ -662,7 +662,7 @@ function LiveFeed() {
           className="filter-chip"
           style={dedupeMode ? {background:'#d97706',color:'white',borderColor:'#d97706'} : {}}
           onClick={() => setDedupeMode(d => !d)}
-        >Dedupe</button>
+        >{dedupeMode ? 'Dedupe: ON' : 'Show All'}</button>
       </div>
       <div className="table-wrap">
         <table>
@@ -746,7 +746,7 @@ function DirectionBoard() {
   const { alerts, rules, openTrades, watchlist, toggleFavorite, deleteAlert, toggleOpenTrade, searchQuery, assetFilter } = useTrading();
   const [todayOnly, setTodayOnly] = useState(false);
   const [openTradeOnly, setOpenTradeOnly] = useState(false);
-  const [dedupeMode, setDedupeMode] = useState(false);
+  const [dedupeMode, setDedupeMode] = useState(true);
   const [watchFilter, setWatchFilter] = useState(null);
   const [addOpenSym, setAddOpenSym] = useState('');
 
@@ -822,8 +822,13 @@ function DirectionBoard() {
               <span className="badge badge-open" style={{fontSize:'0.58rem',padding:'1px 5px'}}>OPEN</span>
             )}
           </div>
-          <div className="sym-card-sub" style={{color: STRAT_COLOR[colId] || 'hsl(var(--muted-foreground))'}}>
-            {stratText ? stratText + ' · ' : ''}{timeAgo(ts)}
+          {stratText && (
+            <span style={{display:'inline-block',background:STRAT_COLOR[colId]||'#6b7280',color:'white',borderRadius:10,fontSize:'0.58rem',fontWeight:700,padding:'1px 6px',marginBottom:2}}>
+              {stratText}
+            </span>
+          )}
+          <div className="sym-card-sub">
+            {timeAgo(ts)}
           </div>
         </div>
         <div className="sym-card-actions">
@@ -835,6 +840,9 @@ function DirectionBoard() {
             <>
               <button className={'icon-btn' + (isFav ? ' active' : '')} onClick={() => toggleFavorite(alert.id)}>
                 <I.Star filled={isFav} s={12}/>
+              </button>
+              <button className="icon-btn" title="Mark as Open Trade" onClick={() => toggleOpenTrade(alert.symbol)}>
+                <I.Bookmark s={12}/>
               </button>
               <button className="icon-btn" onClick={() => window.open('https://www.tradingview.com/chart/?symbol=' + alert.symbol, '_blank')}>
                 <I.Link s={12}/>
@@ -883,7 +891,7 @@ function DirectionBoard() {
       )}
       <div className="page-header">
         <span className="page-title">Direction Board</span>
-        <span className="count-badge">{(columns.bullish?.length||0)+(columns.bearish?.length||0)+(columns.sell_calls?.length||0)} alerts</span>
+        <span className="count-badge">🟢 {columns.bullish?.length||0} · 🔴 {columns.bearish?.length||0} · 🟡 {columns.sell_calls?.length||0} · 📌 {columns.open_trades?.length||0}</span>
       </div>
       <div className="filter-bar">
         <button className={'filter-chip' + (todayOnly ? ' active' : '')} onClick={() => setTodayOnly(t => !t)}>Today</button>
@@ -892,7 +900,7 @@ function DirectionBoard() {
           className="filter-chip"
           style={dedupeMode ? {background:'#d97706',color:'white',borderColor:'#d97706'} : {}}
           onClick={() => setDedupeMode(d => !d)}
-        >Dedupe</button>
+        >{dedupeMode ? 'Dedupe: ON' : 'Show All'}</button>
       </div>
       <div className="kanban">
         {colDefs.map(({ id, label, cls }) => (
@@ -994,7 +1002,7 @@ function StrategyBoard() {
       <div className="filter-bar">
         <button className={'filter-chip' + (todayOnly ? ' active' : '')} onClick={() => setTodayOnly(v => !v)}>Today</button>
         <button className={'filter-chip' + (openTradeOnly ? ' active' : '')} onClick={() => setOpenTradeOnly(v => !v)}>Open Trades Only</button>
-        <button className={'filter-chip' + (dedupeMode ? ' active' : '')} style={dedupeMode ? {background:'#d97706',color:'white',borderColor:'#d97706'} : {}} onClick={() => setDedupeMode(v => !v)}>Dedupe</button>
+        <button className={'filter-chip' + (dedupeMode ? ' active' : '')} style={dedupeMode ? {background:'#d97706',color:'white',borderColor:'#d97706'} : {}} onClick={() => setDedupeMode(v => !v)}>{dedupeMode ? 'Dedupe: ON' : 'Show All'}</button>
         <div style={{marginLeft:'auto',display:'flex',gap:5,flexWrap:'wrap'}}>
           {[['all','All Signals'],['bullish','Bullish'],['bearish','Bearish'],['sell_calls','Sell Calls']].map(([id,label]) => (
             <button key={id} className={'filter-chip' + (signalFilter === id ? ' active' : '')} onClick={() => setSignalFilter(id)}>{label}</button>

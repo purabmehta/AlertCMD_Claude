@@ -477,7 +477,7 @@ function applyScreenerFilter(rows, mode) {
     case 'already_bearish': return rows.filter(r => r.weeklyRegime === 'BEARISH' && (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS'));
     case 'exit_long': return rows.filter(r => r.stochRsi12hCross === 'cross_down' && (r.trigger12h === 'BULLISH' || r.trigger12h === 'BULLISH_CROSS'));
     case 'exit_short': return rows.filter(r => r.stochRsi12hCross === 'cross_up' && (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS'));
-    case 'long_aggressive': return rows.filter(r => r.weeklyRegime === 'BULLISH' && r.trigger12h === 'BULLISH_CROSS');
+    case 'long_aggressive': return rows.filter(r => r.weeklyRegime === 'BULLISH' && r.trigger12h === 'BULLISH_CROSS' && r.trigger1h === 'BULLISH_CROSS');
     case 'short_aggressive': return rows.filter(r => (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS') && r.stochRsi12hCross === 'cross_down');
     default: return rows;
   }

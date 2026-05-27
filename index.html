@@ -252,7 +252,8 @@ const { useState, useEffect, useCallback, useMemo, useRef, createContext, useCon
 // ============================================================
 // CONSTANTS
 // ============================================================
-const API_BASE = 'https://alertcmd.purabmehta.workers.dev';  // Uses same-origin (your server must serve this file, or change to 'http://77.42.23.93')
+const API_BASE = 'https://alertcmd.purabmehta.workers.dev';
+const SCREENER_BASE = 'https://screener.purabmehta.workers.dev';
 const POLL_INTERVAL = 30000;  // 10 seconds - matches original app
 const SCREENER_POLL_INTERVAL = 30000;  // 30 seconds - matches original app
 
@@ -456,9 +457,10 @@ function timeAgo(dateStr) {
 }
 function fmtVol(n) {
   if (!n) return '-';
-  if (n >= 1e9) return (n/1e9).toFixed(1) + 'B';
-  if (n >= 1e6) return (n/1e6).toFixed(0) + 'M';
-  return n.toLocaleString();
+  if (n >= 1e9) return '$' + (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return '$' + (n/1e6).toFixed(0) + 'M';
+  if (n >= 1e3) return '$' + (n/1e3).toFixed(0) + 'K';
+  return '$' + n.toLocaleString();
 }
 function fmtPrice(p) {
   if (p == null) return '-';
@@ -475,8 +477,8 @@ function applyScreenerFilter(rows, mode) {
     case 'already_bearish': return rows.filter(r => r.weeklyRegime === 'BEARISH' && (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS'));
     case 'exit_long': return rows.filter(r => r.stochRsi12hCross === 'cross_down' && (r.trigger12h === 'BULLISH' || r.trigger12h === 'BULLISH_CROSS'));
     case 'exit_short': return rows.filter(r => r.stochRsi12hCross === 'cross_up' && (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS'));
-    case 'long_aggressive': return rows.filter(r => (r.trigger12h === 'BULLISH' || r.trigger12h === 'BULLISH_CROSS') && r.stochRsi2hCross === 'cross_up');
-    case 'short_aggressive': return rows.filter(r => (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS') && r.stochRsi2hCross === 'cross_down');
+    case 'long_aggressive': return rows.filter(r => (r.trigger12h === 'BULLISH' || r.trigger12h === 'BULLISH_CROSS') && r.stochRsi12hCross === 'cross_up');
+    case 'short_aggressive': return rows.filter(r => (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS') && r.stochRsi12hCross === 'cross_down');
     default: return rows;
   }
 }
@@ -1044,35 +1046,36 @@ function CryptoScreener() {
   const [mode, setMode] = useState('bullish_entry');
   const [rowsRaw, setRowsRaw] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [engineUpdatedAt, setEngineUpdatedAt] = useState(null);
-  const [universeCount, setUniverseCount] = useState(0);
-  const [liquidCount, setLiquidCount] = useState(0);
-  const [scannedCount, setScannedCount] = useState(0);
-  const [sortKey, setSortKey] = useState('symbol');
-  const [sortDir, setSortDir] = useState('asc');
+  const [totalPairs, setTotalPairs] = useState(0);
+  const [scannedPairs, setScannedPairs] = useState(0);
+  const [sortKey, setSortKey] = useState('quoteVolume');
+  const [sortDir, setSortDir] = useState('desc');
   const [onlyFavorites, setOnlyFavorites] = useState(false);
-  const [minVolM, setMinVolM] = useState(100);
+  const [minVolM, setMinVolM] = useState(50);
+
+  async function fetchScreener(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    setRowsRaw(data.rows || []);
+    if (data.updatedAt) setEngineUpdatedAt(data.updatedAt);
+    if (data.totalPairs) setTotalPairs(data.totalPairs);
+    if (data.scannedPairs) setScannedPairs(data.scannedPairs);
+  }
 
   const loadScreener = useCallback(async () => {
     setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        smaTf: '1w', smaLength: '5', triggerTf: '12h',
-        macdFast: '12', macdSlow: '26', macdSignal: '9',
-        minQuoteVol: String(minVolM * 1e6)
-      });
-      const res = await fetch(API_BASE );
-      if (res.ok) {
-        const data = await res.json();
-        setRowsRaw(data.rows || data);
-        if (data.updatedAt) setEngineUpdatedAt(new Date(data.updatedAt));
-        if (data.universeCount) setUniverseCount(data.universeCount);
-        if (data.liquidCount) setLiquidCount(data.liquidCount);
-        if (data.scannedCount) setScannedCount(data.scannedCount);
-      }
-    } catch(e) {}
+    try { await fetchScreener(SCREENER_BASE + '?minVol=' + (minVolM * 1e6)); } catch(e) {}
     setLoading(false);
   }, [minVolM]);
+
+  async function forceRefresh() {
+    setRefreshing(true);
+    try { await fetchScreener(SCREENER_BASE + '?refresh=true&minVol=' + (minVolM * 1e6)); } catch(e) {}
+    setRefreshing(false);
+  }
 
   useEffect(() => {
     loadScreener();
@@ -1083,46 +1086,65 @@ function CryptoScreener() {
   const rows = useMemo(() => {
     let list = applyScreenerFilter(rowsRaw, mode);
     if (onlyFavorites) list = list.filter(r => watchlist.includes(r.symbol));
+    if (minVolM > 0) list = list.filter(r => (r.quoteVolume || 0) >= minVolM * 1e6);
     list = [...list].sort((a, b) => {
-      const av = a[sortKey] ?? 0, bv = b[sortKey] ?? 0;
+      const av = a[sortKey] ?? '', bv = b[sortKey] ?? '';
       return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
     });
     return list;
-  }, [rowsRaw, mode, sortKey, sortDir, onlyFavorites, watchlist]);
+  }, [rowsRaw, mode, sortKey, sortDir, onlyFavorites, watchlist, minVolM]);
 
   function onSort(key) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortKey(key); setSortDir('asc'); }
+    else { setSortKey(key); setSortDir('desc'); }
   }
-  const sm = k => sortKey === k ? (sortDir === 'asc' ? ' â²' : ' â¼') : '';
+  function sm(k) { return sortKey === k ? (sortDir === 'asc' ? ' (asc)' : ' (desc)') : ''; }
 
   function TriggerCell({ val }) {
-    if (!val) return <span className="text-muted">â</span>;
+    if (!val) return <span style={{color:'hsl(var(--muted-foreground))'}}>-</span>;
     const isCross = val.includes('CROSS');
     const isBull = val.includes('BULLISH');
-    return <span className={'trigger-' + (isBull ? 'bull' : 'bear') + (isCross ? ' trigger-cross' : '')}>{val}{isCross ? ' â¡' : ''}</span>;
+    const color = isBull ? (isCross ? '#16a34a' : '#4ade80') : (isCross ? '#dc2626' : '#f87171');
+    const label = val.replace('_CROSS', ' CROSS').replace('_', ' ');
+    return <span style={{color, fontWeight: isCross ? 700 : 500, fontSize:'0.75rem'}}>{label}</span>;
+  }
+
+  function StochCell({ row }) {
+    const k = row.stochK, d = row.stochD, cross = row.stochRsi12hCross;
+    const arrow = cross === 'cross_up'
+      ? <span style={{color:'#16a34a',fontWeight:700}}> UP</span>
+      : cross === 'cross_down'
+      ? <span style={{color:'#dc2626',fontWeight:700}}> DN</span>
+      : null;
+    if (k == null) return <span style={{color:'hsl(var(--muted-foreground))'}}>-</span>;
+    return <span style={{fontSize:'0.73rem',fontFamily:'JetBrains Mono,monospace'}}>
+      {k.toFixed(1)}/{d != null ? d.toFixed(1) : '-'}{arrow}
+    </span>;
   }
 
   return (
     <div className="page">
       <div className="page-header" style={{justifyContent:'space-between'}}>
         <span className="page-title">Crypto Screener</span>
-        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+        <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+          {engineUpdatedAt && (
+            <span style={{fontSize:'0.75rem',color:'hsl(var(--muted-foreground))'}}>
+              {scannedPairs > 0 && <span>{scannedPairs}/{totalPairs} pairs - </span>}
+              updated {timeAgo(engineUpdatedAt)}
+            </span>
+          )}
           <label className="toggle"><input type="checkbox" checked={onlyFavorites} onChange={e => setOnlyFavorites(e.target.checked)}/><span className="toggle-slider"/></label>
-          <span style={{fontSize:'0.78rem'}}>Favorites only</span>
-          <button className="btn btn-primary" onClick={loadScreener} disabled={loading} style={{display:'flex',gap:5,alignItems:'center'}}>
-            <I.RefreshCw s={12}/>{loading ? 'Loading...' : 'Refresh'}
+          <span style={{fontSize:'0.78rem'}}>Favs only</span>
+          <span style={{fontSize:'0.78rem',color:'hsl(var(--muted-foreground))'}}>Min vol $</span>
+          <input type="number" className="form-input" style={{width:70,padding:'3px 6px',fontSize:'0.78rem'}} value={minVolM}
+            onChange={e => setMinVolM(Number(e.target.value) || 0)} placeholder="50"/>
+          <span style={{fontSize:'0.75rem',color:'hsl(var(--muted-foreground))'}}>M</span>
+          <button className="btn btn-primary" onClick={forceRefresh} disabled={refreshing || loading}
+            style={{display:'flex',gap:5,alignItems:'center',minWidth:120}}>
+            <I.RefreshCw s={12}/>{refreshing ? 'Scanning... (30-60s)' : loading ? 'Loading...' : 'Force Refresh'}
           </button>
         </div>
       </div>
-      {(universeCount > 0 || scannedCount > 0) && (
-        <div className="screener-stats">
-          {universeCount > 0 && <div className="screener-stat">Universe: <strong>{universeCount}</strong></div>}
-          {liquidCount > 0 && <div className="screener-stat">Liquid: <strong>{liquidCount}</strong></div>}
-          {scannedCount > 0 && <div className="screener-stat">Scanned: <strong>{scannedCount}</strong></div>}
-          {engineUpdatedAt && <div className="screener-stat">Updated: <strong>{fmtTime(engineUpdatedAt)}</strong></div>}
-        </div>
-      )}
       <div className="screener-tabs">
         {SCREENER_MODES.map(m => (
           <button key={m.id} className={'screener-tab' + (mode === m.id ? ' active' : '')} onClick={() => setMode(m.id)}>
@@ -1134,51 +1156,53 @@ function CryptoScreener() {
         <table>
           <thead>
             <tr>
-              <th style={{width:36}}>â</th>
+              <th style={{width:36}}></th>
               <th className="sortable" onClick={() => onSort('symbol')}>Symbol{sm('symbol')}</th>
-              <th className="sortable" onClick={() => onSort('price')} style={{textAlign:'right'}}>Price{sm('price')}</th>
-              <th className="sortable" onClick={() => onSort('change24hPct')} style={{textAlign:'right'}}>24h%{sm('change24hPct')}</th>
-              <th className="sortable" onClick={() => onSort('quoteVolume24h')} style={{textAlign:'right'}}>24h Vol{sm('quoteVolume24h')}</th>
+              <th className="sortable" onClick={() => onSort('lastPrice')} style={{textAlign:'right'}}>Price{sm('lastPrice')}</th>
+              <th className="sortable" onClick={() => onSort('priceChangePercent')} style={{textAlign:'right'}}>24h%{sm('priceChangePercent')}</th>
+              <th className="sortable" onClick={() => onSort('quoteVolume')} style={{textAlign:'right'}}>24h Vol{sm('quoteVolume')}</th>
               <th>Weekly</th>
-              <th>12H Trigger</th>
-              <th>8H</th>
-              <th>1H</th>
-              <th>StochRSI 2H</th>
-              <th>Updated</th>
+              <th>12H MACD</th>
+              <th>Stoch RSI</th>
+              <th style={{textAlign:'right'}}>Updated</th>
             </tr>
           </thead>
           <tbody>
             {rows.map(r => {
               const isFav = watchlist.includes(r.symbol);
+              const pct = parseFloat(r.priceChangePercent);
               return (
-                <tr key={r.symbol} style={{cursor:'pointer'}} onClick={() => window.open('https://www.tradingview.com/chart/?symbol=' + r.symbol + 'USDT', '_blank')}>
-                  <td>
-                    <button className={'icon-btn' + (isFav ? ' active' : '')} onClick={e => { e.stopPropagation(); isFav ? removeFromWatchlist(r.symbol) : addToWatchlist(r.symbol); }}>
+                <tr key={r.symbol} style={{cursor:'pointer'}} onClick={() => window.open('https://www.tradingview.com/chart/?symbol=BINANCE:' + r.symbol, '_blank')}>
+                  <td onClick={e => e.stopPropagation()}>
+                    <button className={'icon-btn' + (isFav ? ' active' : '')} onClick={() => isFav ? removeFromWatchlist(r.symbol) : addToWatchlist(r.symbol)}>
                       <I.Star filled={isFav} s={13}/>
                     </button>
                   </td>
                   <td><span className="mono" style={{fontWeight:700}}>{r.symbol}</span></td>
-                  <td className="mono" style={{textAlign:'right'}}>{fmtPrice(r.price)}</td>
-                  <td className={'mono' + (r.change24hPct >= 0 ? ' text-green' : ' text-red')} style={{textAlign:'right'}}>
-                    {r.change24hPct != null ? (r.change24hPct >= 0 ? '+' : '') + r.change24hPct.toFixed(2) + '%' : '-'}
+                  <td className="mono" style={{textAlign:'right'}}>{fmtPrice(r.lastPrice)}</td>
+                  <td className="mono" style={{textAlign:'right',color: pct >= 0 ? '#16a34a' : '#dc2626', fontWeight:600}}>
+                    {!isNaN(pct) ? (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%' : '-'}
                   </td>
-                  <td className="mono" style={{textAlign:'right'}}>{fmtVol(r.quoteVolume24h)}</td>
-                  <td><span className={r.weeklyRegime === 'BULLISH' ? 'regime-bull' : 'regime-bear'}>{r.weeklyRegime === 'BULLISH' ? 'â² BULL' : 'â¼ BEAR'}</span></td>
+                  <td className="mono" style={{textAlign:'right'}}>{fmtVol(r.quoteVolume)}</td>
+                  <td>
+                    <span style={{
+                      padding:'2px 7px', borderRadius:4, fontSize:'0.72rem', fontWeight:700,
+                      background: r.weeklyRegime === 'BULLISH' ? 'var(--bullish-bg)' : 'var(--bearish-bg)',
+                      color: r.weeklyRegime === 'BULLISH' ? 'var(--bullish-text)' : 'var(--bearish-text)',
+                      border: '1px solid ' + (r.weeklyRegime === 'BULLISH' ? 'var(--bullish-border)' : 'var(--bearish-border)')
+                    }}>
+                      {r.weeklyRegime || '-'}
+                    </span>
+                  </td>
                   <td><TriggerCell val={r.trigger12h}/></td>
-                  <td style={{fontSize:'0.75rem'}}><TriggerCell val={r.trigger8h}/></td>
-                  <td style={{fontSize:'0.75rem'}}><TriggerCell val={r.trigger1h}/></td>
-                  <td style={{fontSize:'0.75rem'}}>
-                    {r.stochRsi2hCross === 'cross_up' ? <span className="text-green">â Up</span>
-                     : r.stochRsi2hCross === 'cross_down' ? <span className="text-red">â Down</span>
-                     : <span className="text-muted">â</span>}
-                  </td>
-                  <td style={{fontSize:'0.7rem',color:'hsl(var(--muted-foreground))'}}>{fmtTime(r.updatedAt)}</td>
+                  <td><StochCell row={r}/></td>
+                  <td style={{textAlign:'right',fontSize:'0.7rem',color:'hsl(var(--muted-foreground))'}}>{timeAgo(r.updatedAt)}</td>
                 </tr>
               );
             })}
             {rows.length === 0 && (
-              <tr><td colSpan="11" style={{textAlign:'center',padding:'32px',color:'hsl(var(--muted-foreground))'}}>
-                {loading ? 'Loading screener data...' : rowsRaw.length === 0 ? 'No screener data â check your server connection' : 'No results for this filter'}
+              <tr><td colSpan="9" style={{textAlign:'center',padding:'32px',color:'hsl(var(--muted-foreground))'}}>
+                {loading || refreshing ? 'Loading screener data...' : rowsRaw.length === 0 ? 'No data - click Force Refresh or wait for auto-load' : 'No results for this filter'}
               </td></tr>
             )}
           </tbody>

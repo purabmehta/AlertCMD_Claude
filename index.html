@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,7 +15,7 @@
   --background: 220 20% 97%;
   --foreground: 220 15% 20%;
   --card: 0 0% 100%;
-  --card-foreground: 220 15% 20%;hh
+  --card-foreground: 220 15% 20%;
   --card-elevated: 220 15% 96%;
   --border: 220 15% 88%;
   --muted: 220 14% 95%;
@@ -31,25 +31,27 @@
   --ring: 190 70% 42%;
   --radius: 0.75rem;
   --sidebar-bg: hsl(210 35% 96%);
-  --bullish: 165 70% 35%;
-  --bullish-bg: hsl(165 45% 92%);
-  --bullish-border: hsl(165 50% 80%);
-  --bullish-text: hsl(165 70% 28%);
-  --bearish: 35 85% 50%;
-  --bearish-bg: hsl(28 60% 92%);
-  --bearish-border: hsl(28 60% 78%);
-  --bearish-text: hsl(28 88% 38%);
-  --sell: 5 75% 52%;
-  --sell-bg: hsl(5 50% 93%);
-  --sell-border: hsl(5 55% 80%);
-  --sell-text: hsl(5 75% 42%);
-  --open-trades-bg: hsl(210 80% 95%);
-  --open-trades-text: hsl(210 80% 40%);
-  --open-trades-border: hsl(210 60% 80%);
+  --bullish: 142 71% 45%;
+  --bullish-bg: #dcfce7;
+  --bullish-border: #86efac;
+  --bullish-text: #16a34a;
+  --bearish: 0 72% 51%;
+  --bearish-bg: #fee2e2;
+  --bearish-border: #fca5a5;
+  --bearish-text: #dc2626;
+  --sell: 38 92% 50%;
+  --sell-bg: #fef3c7;
+  --sell-border: #fcd34d;
+  --sell-text: #d97706;
+  --open-trades-bg: #dcfce7;
+  --open-trades-text: #16a34a;
+  --open-trades-border: #86efac;
   --green: hsl(142 76% 36%);
   --red: hsl(0 84% 55%);
   --orange: hsl(25 95% 55%);
   --ui-font-size: 16px;
+  --th-bg: 220 15% 25%;
+  --th-fg: 0 0% 98%;
 }
 html.dark {
   --background: 220 20% 10%;
@@ -88,6 +90,8 @@ html.dark {
   --green: hsl(142 76% 45%);
   --red: hsl(0 84% 65%);
   --orange: hsl(25 95% 65%);
+  --th-bg: 220 18% 16%;
+  --th-fg: 210 20% 90%;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: var(--ui-font-size); }
@@ -140,7 +144,7 @@ body { font-family: 'Inter', sans-serif; background: hsl(var(--background)); col
 /* Table */
 .table-wrap { background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 8px; overflow: hidden; }
 table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-th { text-align: left; padding: 8px 12px; background: hsl(165 60% 22%); color: white; font-weight: 600; font-size: 0.73rem; text-transform: uppercase; letter-spacing: 0.04em; position: sticky; top: 0; z-index: 10; white-space: nowrap; }
+th { text-align: left; padding: 8px 12px; background: hsl(var(--th-bg)); color: hsl(var(--th-fg)); font-weight: 600; font-size: 0.73rem; text-transform: uppercase; letter-spacing: 0.04em; position: sticky; top: 0; z-index: 10; white-space: nowrap; }
 th.sortable { cursor: pointer; user-select: none; }
 th.sortable:hover { background: hsl(165 60% 28%); }
 td { padding: 7px 12px; border-bottom: 1px solid hsl(var(--border)); vertical-align: middle; }
@@ -388,6 +392,7 @@ function useTrading() { return useContext(TradingContext); }
 // ROUTING LOGIC (matches original AlertsBoard routing)
 // ============================================================
 function routeColumn(alert, rules) {
+  // User-defined rules take priority
   const sortedRules = [...rules].sort((a, b) => (a.priority || 999) - (b.priority || 999));
   for (const rule of sortedRules) {
     const fieldVal = (alert[rule.match_field] || alert[rule.match_field?.replace('_', '')] || '').toLowerCase();
@@ -395,11 +400,13 @@ function routeColumn(alert, rules) {
       return rule.column_name;
     }
   }
-  const dir = (alert.direction || '').toLowerCase();
+  // Built-in routing rules engine (case-insensitive, per spec)
   const strat = (alert.strategy || '').toLowerCase();
-  if (dir === 'short' || dir === 'sell') return 'bearish';
-  if (strat.includes('sell the rip') || strat.includes('covered call')) return 'sell_calls';
-  if (strat.includes('buy the dip')) return 'bullish';
+  const dir = (alert.direction || '').toLowerCase();
+  if (strat.includes('sell calls')) return 'sell_calls';
+  if (strat.includes('sell the rip')) return 'bearish';
+  if (dir.includes('short') || dir.includes('sell')) return 'bearish';
+  if (dir.includes('long') || dir.includes('buy')) return 'bullish';
   return 'bullish';
 }
 
@@ -547,32 +554,45 @@ function TopToolbar({ page, darkMode, setDarkMode }) {
 // ============================================================
 function LiveFeed() {
   const { alerts, rules, openTrades, toggleFavorite, deleteAlert, toggleOpenTrade, searchQuery, assetFilter } = useTrading();
-  const [activeFilter, setActiveFilter] = useState(null);
   const [sortKey, setSortKey] = useState('createdAt');
   const [sortDir, setSortDir] = useState('desc');
+  const [dedupeMode, setDedupeMode] = useState(false);
+  const [todayOnly, setTodayOnly] = useState(false);
+  const [openTradeFilter, setOpenTradeFilter] = useState('all');
+  const [favFilter, setFavFilter] = useState('all');
+  const [filterTimestamp, setFilterTimestamp] = useState('');
+  const [filterSymbol, setFilterSymbol] = useState('');
+  const [filterAction, setFilterAction] = useState('');
+  const [filterInterval, setFilterInterval] = useState('');
 
   const filtered = useMemo(() => {
     let list = [...alerts];
-    // Asset filter
     if (assetFilter === 'stocks') list = list.filter(a => a.assetClass === 'stock' || a.asset_class === 'stock');
     else if (assetFilter === 'crypto') list = list.filter(a => a.assetClass === 'crypto' || a.asset_class === 'crypto');
-    // Search
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      list = list.filter(a => (a.symbol||'').toLowerCase().includes(q) || (a.messageRaw||a.message_raw||'').toLowerCase().includes(q) || (a.strategy||'').toLowerCase().includes(q));
+      list = list.filter(a => (a.symbol||'').toLowerCase().includes(q) || (a.strategy||'').toLowerCase().includes(q));
     }
-    // Active filters
-    if (activeFilter === 'today') list = list.filter(a => isToday(a.createdAt || a.created_at));
-    if (activeFilter === 'open') list = list.filter(a => openTrades.includes(a.symbol));
-    if (activeFilter === 'favorites') list = list.filter(a => a.isFavorite);
-    // Sort
+    if (todayOnly) list = list.filter(a => isToday(a.createdAt || a.created_at));
+    if (openTradeFilter === 'open_only') list = list.filter(a => openTrades.includes(a.symbol));
+    else if (openTradeFilter === 'no_open') list = list.filter(a => !openTrades.includes(a.symbol));
+    if (favFilter === 'fav_only') list = list.filter(a => a.isFavorite);
+    else if (favFilter === 'not_fav') list = list.filter(a => !a.isFavorite);
     list.sort((a, b) => {
       const av = a[sortKey] || a[sortKey.replace(/([A-Z])/g, '_$1').toLowerCase()] || '';
       const bv = b[sortKey] || b[sortKey.replace(/([A-Z])/g, '_$1').toLowerCase()] || '';
       return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
     });
+    if (dedupeMode) {
+      const seen = {};
+      list = list.filter(a => { if (!seen[a.symbol]) { seen[a.symbol] = true; return true; } return false; });
+    }
+    if (filterTimestamp) list = list.filter(a => fmtDate(a.createdAt||a.created_at).toLowerCase().includes(filterTimestamp.toLowerCase()));
+    if (filterSymbol) list = list.filter(a => (a.symbol||'').toLowerCase().includes(filterSymbol.toLowerCase()));
+    if (filterAction) list = list.filter(a => (a.strategy||'').toLowerCase().includes(filterAction.toLowerCase()));
+    if (filterInterval) list = list.filter(a => (a.timeframe||'').toLowerCase().includes(filterInterval.toLowerCase()));
     return list;
-  }, [alerts, assetFilter, searchQuery, activeFilter, openTrades, sortKey, sortDir]);
+  }, [alerts, assetFilter, searchQuery, todayOnly, openTradeFilter, favFilter, sortKey, sortDir, dedupeMode, filterTimestamp, filterSymbol, filterAction, filterInterval, openTrades]);
 
   function onSort(key) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -580,13 +600,17 @@ function LiveFeed() {
   }
   function sortMark(key) { return sortKey === key ? (sortDir === 'asc' ? ' â²' : ' â¼') : ''; }
 
-  function getColBadge(alert) {
+  function getSignalLabel(alert) {
     const col = routeColumn(alert, rules);
-    if (col === 'bullish') return <span className="badge badge-bullish">Bullish</span>;
-    if (col === 'bearish') return <span className="badge badge-bearish">Bearish</span>;
-    if (col === 'sell_calls') return <span className="badge badge-sell">Sell Calls</span>;
-    return <span className="badge badge-gray">{col}</span>;
+    if (col === 'sell_calls') return <span style={{color:'#d97706',fontWeight:600,fontSize:'0.8rem'}}>Sell Calls Signal</span>;
+    if (col === 'bearish') return <span style={{color:'#dc2626',fontWeight:600,fontSize:'0.8rem'}}>Bearish Signal</span>;
+    return <span style={{color:'#16a34a',fontWeight:600,fontSize:'0.8rem'}}>Bullish Signal</span>;
   }
+  const colFilterStyle = {
+    width:'100%', background:'hsl(var(--card))', border:'1px solid hsl(var(--border))',
+    borderRadius:4, padding:'3px 6px', color:'hsl(var(--foreground))', fontSize:'0.72rem',
+    outline:'none', fontFamily:'inherit',
+  };
 
   return (
     <div className="page">
@@ -595,32 +619,51 @@ function LiveFeed() {
         <span className="count-badge">{filtered.length} of {alerts.length} alerts</span>
       </div>
       <div className="filter-bar">
-        {[['today','Today'],['open','Open Trades'],['favorites','Favorites']].map(([id,label]) => (
-          <button key={id} className={'filter-chip' + (activeFilter === id ? ' active' : '')} onClick={() => setActiveFilter(activeFilter === id ? null : id)}>{label}</button>
-        ))}
-        <button className="filter-chip" onClick={() => setActiveFilter(null)}>Clear</button>
+        <button className={'filter-chip' + (todayOnly ? ' active' : '')} onClick={() => setTodayOnly(t => !t)}>Today</button>
+        <select className="form-input" style={{padding:'3px 8px',fontSize:'0.78rem'}} value={openTradeFilter} onChange={e => setOpenTradeFilter(e.target.value)}>
+          <option value="all">All Trades</option>
+          <option value="open_only">Open Only</option>
+          <option value="no_open">No Open</option>
+        </select>
+        <select className="form-input" style={{padding:'3px 8px',fontSize:'0.78rem'}} value={favFilter} onChange={e => setFavFilter(e.target.value)}>
+          <option value="all">All Favs</option>
+          <option value="fav_only">Fav Only</option>
+          <option value="not_fav">Not Fav</option>
+        </select>
+        <button
+          className="filter-chip"
+          style={dedupeMode ? {background:'#d97706',color:'white',borderColor:'#d97706'} : {}}
+          onClick={() => setDedupeMode(d => !d)}
+        >Dedupe</button>
       </div>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th className="sortable" onClick={() => onSort('createdAt')}>Time{sortMark('createdAt')}</th>
+              <th className="sortable" onClick={() => onSort('createdAt')}>Timestamp{sortMark('createdAt')}</th>
               <th className="sortable" onClick={() => onSort('symbol')}>Symbol{sortMark('symbol')}</th>
               <th>Price</th>
-              <th>Column</th>
+              <th>Action</th>
               <th>Interval</th>
               <th>Message</th>
-              <th>Trade</th>
+              <th>Open Trade</th>
               <th>Fav</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
+            <tr style={{background:'hsl(var(--muted))'}}>
+              <td style={{padding:'4px 8px'}}><input placeholder="Filter timestamp..." style={colFilterStyle} value={filterTimestamp} onChange={e => setFilterTimestamp(e.target.value)}/></td>
+              <td style={{padding:'4px 8px'}}><input placeholder="Filter symbol..." style={colFilterStyle} value={filterSymbol} onChange={e => setFilterSymbol(e.target.value)}/></td>
+              <td></td>
+              <td style={{padding:'4px 8px'}}><input placeholder="Filter strategy..." style={colFilterStyle} value={filterAction} onChange={e => setFilterAction(e.target.value)}/></td>
+              <td style={{padding:'4px 8px'}}><input placeholder="Filter..." style={colFilterStyle} value={filterInterval} onChange={e => setFilterInterval(e.target.value)}/></td>
+              <td></td><td></td><td></td><td></td>
+            </tr>
             {filtered.map(alert => {
               const ts = alert.createdAt || alert.created_at;
-              const msg = alert.messageRaw || alert.message_raw || '';
-              const isFav = alert.isFavorite;
               const isOpen = openTrades.includes(alert.symbol);
+              const isFav = alert.isFavorite;
               return (
                 <tr key={alert.id}>
                   <td className="mono" style={{fontSize:'0.72rem',whiteSpace:'nowrap'}}>
@@ -629,14 +672,20 @@ function LiveFeed() {
                   </td>
                   <td><span className="mono" style={{fontWeight:700}}>{alert.symbol}</span></td>
                   <td className="mono" style={{textAlign:'right'}}>{fmtPrice(alert.price)}</td>
-                  <td>{getColBadge(alert)}</td>
+                  <td style={{fontSize:'0.78rem',maxWidth:160,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{alert.strategy || '-'}</td>
                   <td style={{fontSize:'0.75rem',color:'hsl(var(--muted-foreground))'}}>{alert.timeframe || '-'}</td>
-                  <td style={{maxWidth:300}}>
-                    <span style={{fontSize:'0.78rem',color:'hsl(var(--muted-foreground))'}}>{msg}</span>
-                  </td>
+                  <td style={{maxWidth:180}}>{getSignalLabel(alert)}</td>
                   <td>
-                    <button className={'trade-btn' + (isOpen ? ' active' : '')} onClick={() => toggleOpenTrade(alert.symbol)}>
-                      {isOpen ? 'OPEN' : 'Trade'}
+                    <button
+                      style={{
+                        padding:'2px 10px',fontSize:'0.7rem',fontWeight:700,borderRadius:12,cursor:'pointer',
+                        border: isOpen ? '1px solid #86efac' : '1px solid hsl(var(--border))',
+                        background: isOpen ? '#dcfce7' : 'transparent',
+                        color: isOpen ? '#16a34a' : 'hsl(var(--muted-foreground))',
+                      }}
+                      onClick={() => toggleOpenTrade(alert.symbol)}
+                    >
+                      {isOpen ? 'OPEN' : '—'}
                     </button>
                   </td>
                   <td>
@@ -1210,7 +1259,7 @@ function SettingsPage({ darkMode, setDarkMode }) {
 // ============================================================
 function App() {
   const [page, setPage] = useState('direction');
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
 
   return (
     <TradingProvider>

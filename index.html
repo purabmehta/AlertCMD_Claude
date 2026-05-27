@@ -26,7 +26,7 @@
   --secondary-foreground: 220 15% 30%;
   --destructive: 0 72% 55%;
   --destructive-foreground: 210 40% 98%;
-  --accent: 220 14% 92%;
+  --accent: 220 14% 92%;h
   --accent-foreground: 220 15% 20%;
   --ring: 190 70% 42%;
   --radius: 0.75rem;
@@ -1053,13 +1053,13 @@ function CryptoScreener() {
   const [sortKey, setSortKey] = useState('quoteVolume');
   const [sortDir, setSortDir] = useState('desc');
   const [onlyFavorites, setOnlyFavorites] = useState(false);
-  const [minVolM, setMinVolM] = useState(50);
+  const [minVolM, setMinVolM] = useState(1);
 
   async function fetchScreener(url) {
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    setRowsRaw(data.rows || []);
+    setRowsRaw(data.results || []);
     if (data.updatedAt) setEngineUpdatedAt(data.updatedAt);
     if (data.totalPairs) setTotalPairs(data.totalPairs);
     if (data.scannedPairs) setScannedPairs(data.scannedPairs);

@@ -948,7 +948,8 @@ function StrategyBoard() {
   const totalAlerts = stratKeys.reduce((n, s) => n + strategies[s].length, 0);
 
   function getStratRoute(stratName) {
-    return routeColumn({ strategy: stratName, direction: '' }, rules);
+    const sample = strategies[stratName]?.[0];
+    return sample ? routeColumn(sample, rules) : 'bullish';
   }
 
   function getDeduped(cards) {

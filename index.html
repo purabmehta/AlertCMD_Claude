@@ -428,6 +428,16 @@ function fmtDate(dateStr) {
   const d = new Date(dateStr);
   return d.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 }
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + 'm ago';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ago';
+  return Math.floor(h / 24) + 'd ago';
+}
 function fmtVol(n) {
   if (!n) return '-';
   if (n >= 1e9) return (n/1e9).toFixed(1) + 'B';
@@ -720,9 +730,10 @@ function DirectionBoard() {
   const [openTradeOnly, setOpenTradeOnly] = useState(false);
   const [dedupeMode, setDedupeMode] = useState(false);
   const [watchFilter, setWatchFilter] = useState(null);
-  const [columnOrder, setColumnOrder] = useState(['bullish','bearish','sell_calls','open_trades']);
+  const [addOpenSym, setAddOpenSym] = useState('');
 
-  // Build filtered + routed columns
+  const STRAT_COLOR = { bullish: '#16a34a', bearish: '#dc2626', sell_calls: '#d97706', open_trades: '#16a34a' };
+
   const columns = useMemo(() => {
     let list = [...alerts];
     if (assetFilter === 'stocks') list = list.filter(a => (a.assetClass||a.asset_class) === 'stock');
@@ -732,7 +743,13 @@ function DirectionBoard() {
     if (openTradeOnly) list = list.filter(a => openTrades.includes(a.symbol));
     if (watchFilter) list = list.filter(a => a.symbol === watchFilter);
 
-    const cols = { bullish: [], bearish: [], sell_calls: [], open_trades: [] };
+    // Sort newest-first so first occurrence in dedupe is the most recent
+    list.sort((a, b) => {
+      const at = a.createdAt||a.created_at||'', bt = b.createdAt||b.created_at||'';
+      return bt > at ? 1 : -1;
+    });
+
+    const cols = { bullish: [], bearish: [], sell_calls: [] };
     const seen = {};
 
     for (const alert of list) {
@@ -747,50 +764,67 @@ function DirectionBoard() {
           seen[key]._count++;
         }
       } else {
-        cols[col].push(alert);
+        cols[col].push({ ...alert, _count: 1 });
       }
     }
 
-    // Open trades column - show all open trade symbols
-    const usedSymbols = new Set(alerts.map(a => a.symbol));
-    for (const sym of openTrades) {
-      const lastAlert = alerts.find(a => a.symbol === sym);
-      cols.open_trades.push({
+    // Open Trades column — one card per open trade symbol with last-alert data
+    const openTradeCards = openTrades.map(sym => {
+      const lastAlert = [...alerts].filter(a => a.symbol === sym).sort((a, b) => {
+        const at = a.createdAt||a.created_at||'', bt = b.createdAt||b.created_at||'';
+        return bt > at ? 1 : -1;
+      })[0];
+      return {
         id: 'ot_' + sym, symbol: sym,
         createdAt: lastAlert?.createdAt || lastAlert?.created_at || new Date().toISOString(),
-        _isOpenTrade: true
-      });
-    }
+        strategy: lastAlert?.strategy || '',
+        _isOpenTrade: true, _count: 1,
+      };
+    });
 
-    return cols;
+    return { ...cols, open_trades: openTradeCards };
   }, [alerts, rules, openTrades, assetFilter, searchQuery, todayOnly, openTradeOnly, dedupeMode, watchFilter]);
 
   function SymCard({ alert, colId }) {
     const isFav = alert.isFavorite;
     const isOpen = openTrades.includes(alert.symbol);
+    const ts = alert.createdAt || alert.created_at;
+    const stratText = alert.strategy || '';
     return (
       <div className="sym-card">
         <div style={{flex:1,minWidth:0}}>
           <div style={{display:'flex',alignItems:'center',gap:5}}>
             <span className="sym-card-name">{alert.symbol}</span>
-            {alert._count > 1 && <span className="count-pip">x{alert._count}</span>}
-            {isOpen && !alert._isOpenTrade && <span className="badge badge-open" style={{fontSize:'0.58rem',padding:'1px 5px'}}>OPEN</span>}
+            {alert._count > 1 && (
+              <span style={{background:'#d97706',color:'white',borderRadius:10,fontSize:'0.62rem',fontWeight:800,padding:'1px 5px'}}>
+                x{alert._count}
+              </span>
+            )}
+            {isOpen && !alert._isOpenTrade && (
+              <span className="badge badge-open" style={{fontSize:'0.58rem',padding:'1px 5px'}}>OPEN</span>
+            )}
           </div>
-          <div className="sym-card-sub">{fmtTime(alert.createdAt || alert.created_at)}{alert.timeframe ? ' Â· ' + alert.timeframe : ''}</div>
+          <div className="sym-card-sub" style={{color: STRAT_COLOR[colId] || 'hsl(var(--muted-foreground))'}}>
+            {stratText ? stratText + ' · ' : ''}{timeAgo(ts)}
+          </div>
         </div>
         <div className="sym-card-actions">
-          {!alert._isOpenTrade && (
-            <button className={'icon-btn' + (isFav ? ' active' : '')} onClick={() => toggleFavorite(alert.id)}>
-              <I.Star filled={isFav} s={12}/>
+          {alert._isOpenTrade ? (
+            <button className="icon-btn danger" title="Remove from open trades" onClick={() => toggleOpenTrade(alert.symbol)}>
+              <I.X s={12}/>
             </button>
-          )}
-          <button className="icon-btn" onClick={() => window.open('https://www.tradingview.com/chart/?symbol=' + alert.symbol, '_blank')}>
-            <I.Link s={12}/>
-          </button>
-          {!alert._isOpenTrade && (
-            <button className="icon-btn danger" onClick={() => deleteAlert(alert.id)}>
-              <I.Trash s={12}/>
-            </button>
+          ) : (
+            <>
+              <button className={'icon-btn' + (isFav ? ' active' : '')} onClick={() => toggleFavorite(alert.id)}>
+                <I.Star filled={isFav} s={12}/>
+              </button>
+              <button className="icon-btn" onClick={() => window.open('https://www.tradingview.com/chart/?symbol=' + alert.symbol, '_blank')}>
+                <I.Link s={12}/>
+              </button>
+              <button className="icon-btn danger" onClick={() => deleteAlert(alert.id)}>
+                <I.Trash s={12}/>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -804,37 +838,73 @@ function DirectionBoard() {
     { id: 'open_trades', label: 'Open Trades', cls: 'opentrades' },
   ];
 
-  const wlChips = watchlist.slice(0, 25);
+  function handleAddOpenTrade(e) {
+    if (e.key === 'Enter') {
+      const sym = addOpenSym.trim().toUpperCase();
+      if (sym) { toggleOpenTrade(sym); setAddOpenSym(''); }
+    }
+  }
 
   return (
     <div className="page">
-      <div className="info-banner">
-        <I.Info s={13}/> Alerts are routed to columns based on your Rules. Click any symbol to open TradingView.
-      </div>
+      {watchlist.length > 0 && (
+        <div style={{display:'flex',gap:5,overflowX:'auto',paddingBottom:8,marginBottom:8,flexWrap:'nowrap',borderBottom:'1px solid hsl(var(--border))'}}>
+          {watchFilter && (
+            <button className="filter-chip active" style={{whiteSpace:'nowrap',flexShrink:0}} onClick={() => setWatchFilter(null)}>
+              × {watchFilter}
+            </button>
+          )}
+          {watchlist.slice(0,50).map(sym => (
+            <button key={sym} className={'filter-chip' + (watchFilter === sym ? ' active' : '')}
+              style={{fontSize:'0.7rem',padding:'3px 8px',whiteSpace:'nowrap',flexShrink:0,fontFamily:'JetBrains Mono,monospace'}}
+              onClick={() => setWatchFilter(watchFilter === sym ? null : sym)}>
+              {sym}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="page-header">
         <span className="page-title">Direction Board</span>
-        <span className="count-badge">{Object.values(columns).reduce((s,a) => s + a.length, 0)} alerts</span>
+        <span className="count-badge">{(columns.bullish?.length||0)+(columns.bearish?.length||0)+(columns.sell_calls?.length||0)} alerts</span>
       </div>
       <div className="filter-bar">
         <button className={'filter-chip' + (todayOnly ? ' active' : '')} onClick={() => setTodayOnly(t => !t)}>Today</button>
         <button className={'filter-chip' + (openTradeOnly ? ' active' : '')} onClick={() => setOpenTradeOnly(t => !t)}>Open Trades Only</button>
-        <button className={'filter-chip' + (dedupeMode ? ' active' : '')} onClick={() => setDedupeMode(d => !d)}>Dedupe</button>
-        {watchFilter && <button className="filter-chip active" onClick={() => setWatchFilter(null)}>â {watchFilter}</button>}
-        {wlChips.map(sym => (
-          <button key={sym} className={'filter-chip' + (watchFilter === sym ? ' active' : '')} style={{fontSize:'0.7rem',padding:'3px 8px'}} onClick={() => setWatchFilter(watchFilter === sym ? null : sym)}>{sym}</button>
-        ))}
+        <button
+          className="filter-chip"
+          style={dedupeMode ? {background:'#d97706',color:'white',borderColor:'#d97706'} : {}}
+          onClick={() => setDedupeMode(d => !d)}
+        >Dedupe</button>
       </div>
       <div className="kanban">
         {colDefs.map(({ id, label, cls }) => (
           <div key={id} className="kanban-col">
-            <div className={'kanban-header ' + cls}>
-              <span>{label}</span>
-              <span style={{fontSize:'0.85rem'}}>{columns[id]?.length || 0}</span>
+            <div className={'kanban-header ' + cls} style={{alignItems:'center'}}>
+              {id === 'open_trades' ? (
+                <>
+                  <span style={{flex:1}}>● {label} {columns[id]?.length || 0}</span>
+                  <input
+                    placeholder="Add symbol..."
+                    value={addOpenSym}
+                    onChange={e => setAddOpenSym(e.target.value.toUpperCase())}
+                    onKeyDown={handleAddOpenTrade}
+                    style={{
+                      background:'transparent',border:'1px solid currentColor',borderRadius:4,
+                      padding:'2px 6px',fontSize:'0.68rem',color:'inherit',outline:'none',
+                      width:100,opacity:0.85,fontFamily:'JetBrains Mono,monospace',
+                    }}
+                  />
+                </>
+              ) : (
+                <span>● {label} {columns[id]?.length || 0}</span>
+              )}
             </div>
             <div className="kanban-body">
               {(columns[id] || []).map(alert => <SymCard key={alert.id} alert={alert} colId={id}/>)}
               {(!columns[id] || columns[id].length === 0) && (
-                <div style={{color:'hsl(var(--muted-foreground))',fontSize:'0.75rem',textAlign:'center',padding:'24px 0'}}>No alerts</div>
+                <div style={{color:'hsl(var(--muted-foreground))',fontSize:'0.75rem',textAlign:'center',padding:'24px 0'}}>
+                  {id === 'open_trades' ? 'No open trades' : 'No alerts'}
+                </div>
               )}
             </div>
           </div>

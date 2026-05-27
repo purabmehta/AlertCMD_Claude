@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>AlertCmd — TradingView Alert Tracker & Crypto Screener</title>
+<title>AlertCmd â TradingView Alert Tracker & Crypto Screener</title>
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -248,7 +248,7 @@ const { useState, useEffect, useCallback, useMemo, useRef, createContext, useCon
 // ============================================================
 // CONSTANTS
 // ============================================================
-const API_BASE = 'https://raw.githubusercontent.com/purabmehta/AlertCMD_Claude/main/data/alerts.json';  // Uses same-origin (your server must serve this file, or change to 'http://77.42.23.93')
+const API_BASE = 'https://alertcmd.purabmehta.workers.dev';  // Uses same-origin (your server must serve this file, or change to 'http://77.42.23.93')
 const POLL_INTERVAL = 30000;  // 10 seconds - matches original app
 const SCREENER_POLL_INTERVAL = 30000;  // 30 seconds - matches original app
 
@@ -578,7 +578,7 @@ function LiveFeed() {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir('asc'); }
   }
-  function sortMark(key) { return sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''; }
+  function sortMark(key) { return sortKey === key ? (sortDir === 'asc' ? ' â²' : ' â¼') : ''; }
 
   function getColBadge(alert) {
     const col = routeColumn(alert, rules);
@@ -727,7 +727,7 @@ function DirectionBoard() {
             {alert._count > 1 && <span className="count-pip">x{alert._count}</span>}
             {isOpen && !alert._isOpenTrade && <span className="badge badge-open" style={{fontSize:'0.58rem',padding:'1px 5px'}}>OPEN</span>}
           </div>
-          <div className="sym-card-sub">{fmtTime(alert.createdAt || alert.created_at)}{alert.timeframe ? ' · ' + alert.timeframe : ''}</div>
+          <div className="sym-card-sub">{fmtTime(alert.createdAt || alert.created_at)}{alert.timeframe ? ' Â· ' + alert.timeframe : ''}</div>
         </div>
         <div className="sym-card-actions">
           {!alert._isOpenTrade && (
@@ -770,7 +770,7 @@ function DirectionBoard() {
         <button className={'filter-chip' + (todayOnly ? ' active' : '')} onClick={() => setTodayOnly(t => !t)}>Today</button>
         <button className={'filter-chip' + (openTradeOnly ? ' active' : '')} onClick={() => setOpenTradeOnly(t => !t)}>Open Trades Only</button>
         <button className={'filter-chip' + (dedupeMode ? ' active' : '')} onClick={() => setDedupeMode(d => !d)}>Dedupe</button>
-        {watchFilter && <button className="filter-chip active" onClick={() => setWatchFilter(null)}>✕ {watchFilter}</button>}
+        {watchFilter && <button className="filter-chip active" onClick={() => setWatchFilter(null)}>â {watchFilter}</button>}
         {wlChips.map(sym => (
           <button key={sym} className={'filter-chip' + (watchFilter === sym ? ' active' : '')} style={{fontSize:'0.7rem',padding:'3px 8px'}} onClick={() => setWatchFilter(watchFilter === sym ? null : sym)}>{sym}</button>
         ))}
@@ -821,7 +821,7 @@ function StrategyBoard() {
     <div className="page">
       <div className="page-header">
         <span className="page-title">Strategy Board</span>
-        <span className="count-badge">{stratKeys.length} strategies · {alerts.length} alerts</span>
+        <span className="count-badge">{stratKeys.length} strategies Â· {alerts.length} alerts</span>
       </div>
       <div className="kanban">
         {stratKeys.map(strat => (
@@ -909,13 +909,13 @@ function CryptoScreener() {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir('asc'); }
   }
-  const sm = k => sortKey === k ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+  const sm = k => sortKey === k ? (sortDir === 'asc' ? ' â²' : ' â¼') : '';
 
   function TriggerCell({ val }) {
-    if (!val) return <span className="text-muted">—</span>;
+    if (!val) return <span className="text-muted">â</span>;
     const isCross = val.includes('CROSS');
     const isBull = val.includes('BULLISH');
-    return <span className={'trigger-' + (isBull ? 'bull' : 'bear') + (isCross ? ' trigger-cross' : '')}>{val}{isCross ? ' ⚡' : ''}</span>;
+    return <span className={'trigger-' + (isBull ? 'bull' : 'bear') + (isCross ? ' trigger-cross' : '')}>{val}{isCross ? ' â¡' : ''}</span>;
   }
 
   return (
@@ -949,7 +949,7 @@ function CryptoScreener() {
         <table>
           <thead>
             <tr>
-              <th style={{width:36}}>★</th>
+              <th style={{width:36}}>â</th>
               <th className="sortable" onClick={() => onSort('symbol')}>Symbol{sm('symbol')}</th>
               <th className="sortable" onClick={() => onSort('price')} style={{textAlign:'right'}}>Price{sm('price')}</th>
               <th className="sortable" onClick={() => onSort('change24hPct')} style={{textAlign:'right'}}>24h%{sm('change24hPct')}</th>
@@ -978,14 +978,14 @@ function CryptoScreener() {
                     {r.change24hPct != null ? (r.change24hPct >= 0 ? '+' : '') + r.change24hPct.toFixed(2) + '%' : '-'}
                   </td>
                   <td className="mono" style={{textAlign:'right'}}>{fmtVol(r.quoteVolume24h)}</td>
-                  <td><span className={r.weeklyRegime === 'BULLISH' ? 'regime-bull' : 'regime-bear'}>{r.weeklyRegime === 'BULLISH' ? '▲ BULL' : '▼ BEAR'}</span></td>
+                  <td><span className={r.weeklyRegime === 'BULLISH' ? 'regime-bull' : 'regime-bear'}>{r.weeklyRegime === 'BULLISH' ? 'â² BULL' : 'â¼ BEAR'}</span></td>
                   <td><TriggerCell val={r.trigger12h}/></td>
                   <td style={{fontSize:'0.75rem'}}><TriggerCell val={r.trigger8h}/></td>
                   <td style={{fontSize:'0.75rem'}}><TriggerCell val={r.trigger1h}/></td>
                   <td style={{fontSize:'0.75rem'}}>
-                    {r.stochRsi2hCross === 'cross_up' ? <span className="text-green">↑ Up</span>
-                     : r.stochRsi2hCross === 'cross_down' ? <span className="text-red">↓ Down</span>
-                     : <span className="text-muted">—</span>}
+                    {r.stochRsi2hCross === 'cross_up' ? <span className="text-green">â Up</span>
+                     : r.stochRsi2hCross === 'cross_down' ? <span className="text-red">â Down</span>
+                     : <span className="text-muted">â</span>}
                   </td>
                   <td style={{fontSize:'0.7rem',color:'hsl(var(--muted-foreground))'}}>{fmtTime(r.updatedAt)}</td>
                 </tr>
@@ -993,7 +993,7 @@ function CryptoScreener() {
             })}
             {rows.length === 0 && (
               <tr><td colSpan="11" style={{textAlign:'center',padding:'32px',color:'hsl(var(--muted-foreground))'}}>
-                {loading ? 'Loading screener data...' : rowsRaw.length === 0 ? 'No screener data — check your server connection' : 'No results for this filter'}
+                {loading ? 'Loading screener data...' : rowsRaw.length === 0 ? 'No screener data â check your server connection' : 'No results for this filter'}
               </td></tr>
             )}
           </tbody>
@@ -1035,7 +1035,7 @@ function Watchlists() {
           {watchlist.map(sym => (
             <div key={sym} className="watchlist-chip">
               {sym}
-              <button className="watchlist-chip-del" onClick={() => removeFromWatchlist(sym)}>×</button>
+              <button className="watchlist-chip-del" onClick={() => removeFromWatchlist(sym)}>Ã</button>
             </div>
           ))}
           {watchlist.length === 0 && <span style={{color:'hsl(var(--muted-foreground))',fontSize:'0.82rem'}}>No symbols in watchlist yet</span>}

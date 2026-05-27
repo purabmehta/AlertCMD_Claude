@@ -471,13 +471,13 @@ function fmtPrice(p) {
 }
 function applyScreenerFilter(rows, mode) {
   switch(mode) {
-    case 'bullish_entry': return rows.filter(r => r.weeklyRegime === 'BULLISH' && r.trigger12h === 'BULLISH_CROSS');
-    case 'bearish_entry': return rows.filter(r => r.weeklyRegime === 'BEARISH' && r.trigger12h === 'BEARISH_CROSS');
-    case 'already_bullish': return rows.filter(r => r.weeklyRegime === 'BULLISH' && (r.trigger12h === 'BULLISH' || r.trigger12h === 'BULLISH_CROSS'));
-    case 'already_bearish': return rows.filter(r => r.weeklyRegime === 'BEARISH' && (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS'));
+    case 'bullish_entry': return rows.filter(r => r.trigger12h === 'BULLISH_CROSS');
+    case 'bearish_entry': return rows.filter(r => r.trigger12h === 'BEARISH_CROSS');
+    case 'already_bullish': return rows.filter(r => (r.trigger12h === 'BULLISH' || r.trigger12h === 'BULLISH_CROSS'));
+    case 'already_bearish': return rows.filter(r => (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS'));
     case 'exit_long': return rows.filter(r => r.stochRsi12hCross === 'cross_down' && (r.trigger12h === 'BULLISH' || r.trigger12h === 'BULLISH_CROSS'));
     case 'exit_short': return rows.filter(r => r.stochRsi12hCross === 'cross_up' && (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS'));
-    case 'long_aggressive': return rows.filter(r => r.weeklyRegime === 'BULLISH' && r.trigger12h === 'BULLISH_CROSS' && r.trigger1h === 'BULLISH_CROSS');
+    case 'long_aggressive': return rows.filter(r => r.trigger12h === 'BULLISH_CROSS' && r.trigger1h === 'BULLISH_CROSS');
     case 'short_aggressive': return rows.filter(r => (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS') && r.stochRsi12hCross === 'cross_down');
     default: return rows;
   }
@@ -1126,7 +1126,7 @@ function CryptoScreener() {
       : null;
     if (k == null) return <span style={{color:'hsl(var(--muted-foreground))'}}>-</span>;
     return <span style={{fontSize:'0.73rem',fontFamily:'JetBrains Mono,monospace'}}>
-      {k.toFixed(1)}/{d != null ? d.toFixed(1) : '-'}{arrow}
+      {k != null ? k.toFixed(1) : '-'}/{d != null ? d.toFixed(1) : '-'}{arrow}
     </span>;
   }
 

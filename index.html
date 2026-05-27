@@ -456,14 +456,16 @@ function timeAgo(dateStr) {
   return Math.floor(h / 24) + 'd ago';
 }
 function fmtVol(n) {
-  if (!n) return '-';
+  n = parseFloat(n);
+  if (!n || isNaN(n)) return '-';
   if (n >= 1e9) return '$' + (n/1e9).toFixed(2) + 'B';
   if (n >= 1e6) return '$' + (n/1e6).toFixed(0) + 'M';
   if (n >= 1e3) return '$' + (n/1e3).toFixed(0) + 'K';
   return '$' + n.toLocaleString();
 }
 function fmtPrice(p) {
-  if (p == null) return '-';
+  p = parseFloat(p);
+  if (p == null || isNaN(p)) return '-';
   if (p < 0.001) return p.toFixed(6);
   if (p < 1) return p.toFixed(4);
   if (p < 100) return p.toFixed(2);

@@ -1108,7 +1108,11 @@ function CryptoScreener() {
     if (onlyFavorites) list = list.filter(r => watchlist.includes(r.symbol));
     if (minVolM > 0) list = list.filter(r => (r.quoteVolume || 0) >= minVolM * 1e6);
     list = [...list].sort((a, b) => {
-      const av = a[sortKey] ?? '', bv = b[sortKey] ?? '';
+      const numericKeys = ['quoteVolume','priceChangePercent','lastPrice'];
+      const raw_av = a[sortKey] ?? '', raw_bv = b[sortKey] ?? '';
+      const isNum = numericKeys.includes(sortKey);
+      const av = isNum ? parseFloat(raw_av) || 0 : raw_av;
+      const bv = isNum ? parseFloat(raw_bv) || 0 : raw_bv;
       return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
     });
     return list;

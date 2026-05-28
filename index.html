@@ -473,13 +473,13 @@ function fmtPrice(p) {
 }
 function applyScreenerFilter(rows, mode) {
   switch(mode) {
-    case 'bullish_entry': return rows.filter(r => r.trigger12h === 'BULLISH_CROSS');
-    case 'bearish_entry': return rows.filter(r => r.trigger12h === 'BEARISH_CROSS');
-    case 'already_bullish': return rows.filter(r => (r.trigger12h === 'BULLISH' || r.trigger12h === 'BULLISH_CROSS'));
-    case 'already_bearish': return rows.filter(r => (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS'));
+    case 'bullish_entry': return rows.filter(r => r.weeklyRegime === 'BULLISH' && r.trigger12h === 'BULLISH_CROSS');
+    case 'bearish_entry': return rows.filter(r => r.weeklyRegime === 'BEARISH' && r.trigger12h === 'BEARISH_CROSS');
+    case 'already_bullish': return rows.filter(r => r.weeklyRegime === 'BULLISH' && (r.trigger12h === 'BULLISH' || r.trigger12h === 'BULLISH_CROSS'));
+    case 'already_bearish': return rows.filter(r => r.weeklyRegime === 'BEARISH' && (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS'));
     case 'exit_long': return rows.filter(r => r.stochRsi12hCross === 'cross_down' && (r.trigger12h === 'BULLISH' || r.trigger12h === 'BULLISH_CROSS'));
     case 'exit_short': return rows.filter(r => r.stochRsi12hCross === 'cross_up' && (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS'));
-    case 'long_aggressive': return rows.filter(r => r.trigger12h === 'BULLISH_CROSS' && r.trigger1h === 'BULLISH_CROSS');
+    case 'long_aggressive': return rows.filter(r => r.weeklyRegime === 'BULLISH' && r.trigger12h === 'BULLISH_CROSS');
     case 'short_aggressive': return rows.filter(r => (r.trigger12h === 'BEARISH' || r.trigger12h === 'BEARISH_CROSS') && r.stochRsi12hCross === 'cross_down');
     default: return rows;
   }
@@ -609,10 +609,13 @@ function LiveFeed() {
     if (favFilter === 'fav_only') list = list.filter(a => a.isFavorite);
     else if (favFilter === 'not_fav') list = list.filter(a => !a.isFavorite);
     list.sort((a, b) => {
-      const av = a[sortKey] || a[sortKey.replace(/([A-Z])/g, '_$1').toLowerCase()] || '';
-      const bv = b[sortKey] || b[sortKey.replace(/([A-Z])/g, '_$1').toLowerCase()] || '';
-      return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
-    });
+      const numericKeys = ['quoteVolume','priceChangePercent','lastPrice'];
+      const raw_av = a[sortKey] ?? a[sortKey.replace(/([A-Z])/g, '_$1').toLowerCase()] ?? '';
+      const raw_bv = b[sortKey] ?? b[sortKey.replace(/([A-Z])/g, '_$1').toLowerCase()] ?? '';
+      const isNum = numericKeys.includes(sortKey);
+      const av = isNum ? parseFloat(raw_av) || 0 : raw_av;
+      const bv = isNum ? parseFloat(raw_bv) || 0 : raw_bv;
+      return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);    });;
     if (dedupeMode) {
       const seen = {};
       list = list.filter(a => { if (!seen[a.symbol]) { seen[a.symbol] = true; return true; } return false; });

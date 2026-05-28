@@ -253,7 +253,7 @@ const { useState, useEffect, useCallback, useMemo, useRef, createContext, useCon
 // CONSTANTS
 // ============================================================
 const API_BASE = 'https://alertcmd.purabmehta.workers.dev';
-const SCREENER_BASE = 'https://screener.purabmehta.workers.dev';
+const SCREENER_BASE = 'http://77.42.23.93/api/screener/live?smaTf=1w&smaLength=5&triggerTf=12h&macdFast=12&macdSlow=26&macdSignal=9';
 const POLL_INTERVAL = 30000;  // 10 seconds - matches original app
 const SCREENER_POLL_INTERVAL = 30000;  // 30 seconds - matches original app
 
@@ -1074,26 +1074,26 @@ function CryptoScreener() {
     const data = await res.json();
     setRowsRaw((() => {
           const seen = new Map();
-          for (const r of (data.results || [])) {
+          for (const r of ((data.rows || data.results || []).map(r => ({ ...r, lastPrice: r.lastPrice || r.price, priceChangePercent: r.priceChangePercent != null ? r.priceChangePercent : r.change24hPct, quoteVolume: r.quoteVolume || r.quoteVolume24h })))) {
             const prev = seen.get(r.symbol);
             if (!prev || r.updatedAt > prev.updatedAt) seen.set(r.symbol, r);
           }
           return [...seen.values()];
         })());
     if (data.updatedAt) setEngineUpdatedAt(data.updatedAt);
-    if (data.totalPairs) setTotalPairs(data.totalPairs);
-    if (data.scannedPairs) setScannedPairs(data.scannedPairs);
+    if (data.totalPairs) setTotalPairs((data.rows || data.results || []).length);
+    if (data.scannedPairs) setScannedPairs((data.rows || data.results || []).length);
   }
 
   const loadScreener = useCallback(async () => {
     setLoading(true);
-    try { await fetchScreener(SCREENER_BASE + '?minVol=' + (minVolM * 1e6)); } catch(e) {}
+    try { await fetchScreener(SCREENER_BASE + '&minVol=' + (minVolM * 1e6)); } catch(e) {}
     setLoading(false);
   }, [minVolM]);
 
   async function forceRefresh() {
     setRefreshing(true);
-    try { await fetchScreener(SCREENER_BASE + '?refresh=true&minVol=' + (minVolM * 1e6)); } catch(e) {}
+    try { await fetchScreener(SCREENER_BASE + '&refresh=true&minVol=' + (minVolM * 1e6)); } catch(e) {}
     setRefreshing(false);
   }
 
